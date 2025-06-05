@@ -5,7 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🚀 Adventure Sync</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     
     <style>
@@ -93,7 +95,7 @@
             padding: 20px;
             background: #f8f9fa;
             display: flex;
-            gap: 15px;
+            gap: 10px;
             flex-wrap: wrap;
             align-items: center;
         }
@@ -103,21 +105,37 @@
             border-radius: 8px;
             border: 1px solid #ddd;
             font-size: 14px;
+            cursor: pointer;
         }
 
         .controls button {
             background: #28a745;
             color: white;
             border: none;
-            cursor: pointer;
         }
 
         .controls button:hover {
             background: #218838;
         }
 
+        .controls button.danger {
+            background: #dc3545;
+        }
+
+        .controls button.danger:hover {
+            background: #c82333;
+        }
+
+        .controls button.info {
+            background: #17a2b8;
+        }
+
+        .controls button.info:hover {
+            background: #138496;
+        }
+
         #map {
-            height: 400px;
+            height: 450px;
             border: 2px solid #ddd;
         }
 
@@ -185,6 +203,19 @@
             background: #dc3545;
         }
 
+        .location-status {
+            background: #17a2b8;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+
+        .location-status.inactive {
+            background: #6c757d;
+        }
+
         /* Анимация для статуса "Чаи пинаю" */
         @keyframes teaRocking {
             0% { transform: rotate(-5deg); }
@@ -194,6 +225,13 @@
 
         .tea-animation {
             animation: teaRocking 2s infinite;
+        }
+
+        /* Стили для кнопок маршрута */
+        .leaflet-routing-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
 
         /* Мобильная адаптация */
@@ -216,7 +254,7 @@
             }
             
             #map {
-                height: 300px;
+                height: 350px;
             }
         }
     </style>
@@ -239,6 +277,7 @@
             <div class="header">
                 <h2>Adventure Sync</h2>
                 <span id="connection-status" class="status-indicator">Подключение...</span>
+                <span id="location-status" class="location-status inactive">GPS выключен</span>
             </div>
 
             <div class="controls">
@@ -252,14 +291,15 @@
                     <option value="🔴 Не беспокоить">🔴 Не беспокоить</option>
                 </select>
                 
-                <button onclick="requestLocation()">📍 Поделиться местоположением</button>
-                <button onclick="toggleChat()">💬 Чат</button>
+                <button onclick="requestLocation()">📍 Включить GPS</button>
+                <button class="danger" onclick="stopLocationTracking()">❌ Выключить GPS</button>
+                <button class="info" onclick="clearRoute()">🗺️ Очистить маршрут</button>
             </div>
 
             <div id="map"></div>
 
             <div class="chat-section">
-                <h3>Групповой чат</h3>
+                <h3>Групповой чат <small>(клик по другу на карте = маршрут к нему)</small></h3>
                 <div id="chat-messages"></div>
                 <div class="chat-input">
                     <input type="text" id="message-input" placeholder="Напиши сообщение..." onkeypress="handleEnterKey(event)">
@@ -270,17 +310,19 @@
     </div>
 
     <script>
-        // Глобальные перемены
+        // Глобальные переменные
         let socket;
         let map;
         let userMarker;
         let userMarkers = new Map();
+        let routingControl = null;
         let currentUser = {
             name: '',
             status: '🟢 Свободен',
             position: null
         };
         let watchId = null;
+        let isLocationTracking = false;
 
         // Цвета маркеров для статусов
         const statusColors = {
@@ -352,6 +394,32 @@
             }).addTo(map);
         }
 
+        // ИСПРАВЛЕНИЕ: Функция обновления статуса
+        function updateStatus() {
+            const newStatus = document.getElementById('status-select').value;
+            if (newStatus !== currentUser.status) {
+                currentUser.status = newStatus;
+                
+                // Отправляем обновленные данные пользователя на сервер
+                socket.emit('register', currentUser);
+                socket.emit('status', newStatus);
+                
+                // Специальная анимация для "Чаи пинаю"
+                if (newStatus === '☕ Чаи пинаю') {
+                    setTimeout(() => {
+                        addSystemMessage('☕ Чаи пинаешь? А кто работать будет? 😄');
+                    }, 1000);
+                }
+                
+                addSystemMessage(`Статус изменен на: ${newStatus}`);
+                
+                // Обновляем собственный маркер если он существует
+                if (userMarker && currentUser.position) {
+                    updateMyMarker(currentUser.position);
+                }
+            }
+        }
+
         // Запрос геолокации
         function requestLocation() {
             if (!navigator.geolocation) {
@@ -359,9 +427,14 @@
                 return;
             }
 
+            if (isLocationTracking) {
+                addSystemMessage('GPS уже включен!');
+                return;
+            }
+
             const options = {
                 enableHighAccuracy: true,
-                maximumAge: 30000,
+                maximumAge: 10000,
                 timeout: 15000
             };
 
@@ -371,74 +444,113 @@
                     currentUser.position = coords;
                     
                     socket.emit('position', coords);
+                    socket.emit('register', currentUser);
                     updateMyMarker(coords);
                     map.setView(coords, 15);
                     
-                    addSystemMessage('Местоположение обновлено!');
+                    updateLocationStatus(true);
+                    addSystemMessage('GPS включен! Местоположение отслеживается');
                     
-                    // Начинаем отслеживание
-                    if (watchId) navigator.geolocation.clearWatch(watchId);
+                    // Начинаем постоянное отслеживание
                     watchId = navigator.geolocation.watchPosition(
                         (pos) => {
                             const newCoords = [pos.coords.latitude, pos.coords.longitude];
                             currentUser.position = newCoords;
                             socket.emit('position', newCoords);
+                            socket.emit('register', currentUser);
                             updateMyMarker(newCoords);
                         },
-                        (error) => console.warn('Ошибка отслеживания:', error),
+                        (error) => {
+                            console.warn('Ошибка отслеживания:', error);
+                            addSystemMessage('Проблема с отслеживанием GPS');
+                        },
                         options
                     );
+                    
+                    isLocationTracking = true;
                 },
                 (error) => {
                     let errorMsg;
                     switch(error.code) {
                         case error.PERMISSION_DENIED:
-                            errorMsg = "Доступ к геолокации запрещен. Разреши в настройках браузера!";
+                            errorMsg = "Доступ к GPS запрещен. Разреши в настройках!";
                             break;
                         case error.POSITION_UNAVAILABLE:
-                            errorMsg = "Информация о местоположении недоступна.";
+                            errorMsg = "GPS недоступен.";
                             break;
                         case error.TIMEOUT:
-                            errorMsg = "Превышено время ожидания запроса геолокации.";
+                            errorMsg = "Таймаут GPS.";
                             break;
                         default:
-                            errorMsg = "Произошла неизвестная ошибка.";
+                            errorMsg = "Неизвестная ошибка GPS.";
                     }
                     alert(errorMsg);
-                    addSystemMessage(`Ошибка геолокации: ${errorMsg}`);
+                    addSystemMessage(`Ошибка GPS: ${errorMsg}`);
                 },
                 options
             );
         }
 
-        // Обновление статуса
-        function updateStatus() {
-            const newStatus = document.getElementById('status-select').value;
-            currentUser.status = newStatus;
-            socket.emit('status', newStatus);
-            
-            // Специальная анимация для "Чаи пинаю"
-            if (newStatus === '☕ Чаи пинаю') {
-                addSystemMessage('☕ Чаи пинаешь? А кто работать будет? 😄');
+        // НОВАЯ ФУНКЦИЯ: Остановка отслеживания местоположения
+        function stopLocationTracking() {
+            if (!isLocationTracking) {
+                addSystemMessage('GPS уже выключен!');
+                return;
             }
+
+            if (watchId !== null) {
+                navigator.geolocation.clearWatch(watchId);
+                watchId = null;
+            }
+
+            isLocationTracking = false;
+            updateLocationStatus(false);
             
-            addSystemMessage(`Статус изменен на: ${newStatus}`);
+            // Удаляем маркер пользователя с карты
+            if (userMarker) {
+                map.removeLayer(userMarker);
+                userMarker = null;
+            }
+
+            // Сообщаем серверу, что пользователь больше не делится местоположением
+            currentUser.position = null;
+            socket.emit('register', currentUser);
+            socket.emit('position', null);
+
+            addSystemMessage('GPS выключен. Местоположение больше не отслеживается');
+        }
+
+        // Обновление статуса местоположения
+        function updateLocationStatus(active) {
+            const status = document.getElementById('location-status');
+            if (active) {
+                status.textContent = 'GPS включен';
+                status.className = 'location-status';
+            } else {
+                status.textContent = 'GPS выключен';
+                status.className = 'location-status inactive';
+            }
         }
 
         // Обновление собственного маркера
         function updateMyMarker(coords) {
+            const color = statusColors[currentUser.status] || '#007bff';
+            const emoji = currentUser.status.split(' ')[0];
+            const isTeaStatus = currentUser.status === '☕ Чаи пинаю';
+            
             if (userMarker) {
                 userMarker.setLatLng(coords);
+                userMarker.setPopupContent(`<b>${currentUser.name} (ты)</b><br>${currentUser.status}`);
             } else {
                 userMarker = L.marker(coords, {
                     icon: L.divIcon({
-                        className: 'user-marker',
-                        html: `<div style="background: #007bff; color: white; padding: 5px; border-radius: 50%; width: 30px; height: 30px; text-align: center; line-height: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">👤</div>`,
-                        iconSize: [30, 30],
-                        iconAnchor: [15, 15]
+                        className: `user-marker ${isTeaStatus ? 'tea-animation' : ''}`,
+                        html: `<div style="background: ${color}; color: white; padding: 5px; border-radius: 50%; width: 35px; height: 35px; text-align: center; line-height: 25px; box-shadow: 0 3px 8px rgba(0,0,0,0.4); border: 3px solid white;">${emoji}</div>`,
+                        iconSize: [35, 35],
+                        iconAnchor: [17, 17]
                     })
                 }).addTo(map)
-                .bindPopup(`<b>${currentUser.name}</b><br>${currentUser.status}`)
+                .bindPopup(`<b>${currentUser.name} (ты)</b><br>${currentUser.status}`)
                 .openPopup();
             }
         }
@@ -458,28 +570,74 @@
                 if (user.id === socket.id || !user.position) return;
 
                 const color = statusColors[user.status] || '#6c757d';
+                const emoji = user.status.split(' ')[0];
                 const isTeaStatus = user.status === '☕ Чаи пинаю';
                 
                 if (userMarkers.has(user.id)) {
                     // Обновляем существующий маркер
                     const marker = userMarkers.get(user.id);
                     marker.setLatLng(user.position);
-                    marker.setPopupContent(`<b>${user.name}</b><br>${user.status}`);
+                    marker.setPopupContent(`<b>${user.name}</b><br>${user.status}<br><button onclick="buildRouteToUser([${user.position[0]}, ${user.position[1]}], '${user.name}')">📍 Маршрут</button>`);
                 } else {
                     // Создаем новый маркер
                     const marker = L.marker(user.position, {
                         icon: L.divIcon({
                             className: `user-marker ${isTeaStatus ? 'tea-animation' : ''}`,
-                            html: `<div style="background: ${color}; color: white; padding: 5px; border-radius: 50%; width: 30px; height: 30px; text-align: center; line-height: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">${user.status.split(' ')[0]}</div>`,
+                            html: `<div style="background: ${color}; color: white; padding: 5px; border-radius: 50%; width: 30px; height: 30px; text-align: center; line-height: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">${emoji}</div>`,
                             iconSize: [30, 30],
                             iconAnchor: [15, 15]
                         })
                     }).addTo(map)
-                    .bindPopup(`<b>${user.name}</b><br>${user.status}`);
+                    .bindPopup(`<b>${user.name}</b><br>${user.status}<br><button onclick="buildRouteToUser([${user.position[0]}, ${user.position[1]}], '${user.name}')">📍 Маршрут</button>`)
+                    .on('click', () => {
+                        buildRouteToUser(user.position, user.name);
+                    });
                     
                     userMarkers.set(user.id, marker);
                 }
             });
+        }
+
+        // НОВАЯ ФУНКЦИЯ: Построение маршрута к пользователю
+        function buildRouteToUser(targetCoords, targetName) {
+            if (!currentUser.position) {
+                alert('Сначала включи GPS для определения твоего местоположения!');
+                return;
+            }
+
+            // Удаляем предыдущий маршрут
+            if (routingControl) {
+                map.removeControl(routingControl);
+            }
+
+            // Создаем новый маршрут
+            routingControl = L.Routing.control({
+                waypoints: [
+                    L.latLng(currentUser.position[0], currentUser.position[1]),
+                    L.latLng(targetCoords[0], targetCoords[1])
+                ],
+                routeWhileDragging: true,
+                createMarker: function() { return null; }, // Не показываем дополнительные маркеры
+                router: L.Routing.osrmv1({
+                    serviceUrl: 'https://router.project-osrm.org/route/v1'
+                }),
+                formatter: new L.Routing.Formatter({
+                    language: 'ru'
+                })
+            }).addTo(map);
+
+            addSystemMessage(`🗺️ Маршрут к ${targetName} построен!`);
+        }
+
+        // НОВАЯ ФУНКЦИЯ: Очистка маршрута
+        function clearRoute() {
+            if (routingControl) {
+                map.removeControl(routingControl);
+                routingControl = null;
+                addSystemMessage('🗺️ Маршрут очищен');
+            } else {
+                addSystemMessage('Нет активного маршрута');
+            }
         }
 
         // Отправка сообщения
@@ -537,12 +695,6 @@
                 status.textContent = 'Оффлайн';
                 status.className = 'status-indicator disconnected';
             }
-        }
-
-        // Переключение видимости чата
-        function toggleChat() {
-            const chatSection = document.querySelector('.chat-section');
-            chatSection.style.display = chatSection.style.display === 'none' ? 'block' : 'none';
         }
     </script>
 </body>

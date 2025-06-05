@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adventure Sync</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+</head>
+<body>
+    <div id="login-container">
+        <h1>🚀 Adventure Sync</h1>
+        <input type="text" id="username" placeholder="Твой крутой ник">
+        <button onclick="handleLogin()">В бой!</button>
+    </div>
+
+    <div id="app-container" class="hidden">
+        <div id="status-control">
+            <select id="status-select" onchange="updateStatus(this.value)">
+                <option value="🏍️ Готов к заезду">🏍️ Готов к заезду</option>
+                <option value="🍑 Ищу приключения">🍑 Ищу приключения</option>
+                <option value="☕ Чаи пинаю">☕ Чаи пинаю</option>
+                <option value="⛰️ Покоряю вершины">⛰️ Покоряю вершины</option>
+            </select>
+        </div>
+
+        <div id="map-container"></div>
+
+        <div id="chat-container">
+            <div id="chat-messages"></div>
+            <div id="chat-input">
+                <input type="text" id="message-input" placeholder="Твое сообщение...">
+                <button onclick="sendMessage()">💬</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

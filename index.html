@@ -334,6 +334,7 @@
             '🔴 Не беспокоить': '#6c757d'
         };
 
+        
         // Обработчик входа
         function handleLogin() {
             const username = document.getElementById('username').value.trim();
@@ -598,6 +599,7 @@
             });
         }
 
+        
         // НОВАЯ ФУНКЦИЯ: Построение маршрута к пользователю
         function buildRouteToUser(targetCoords, targetName) {
             if (!currentUser.position) {
@@ -696,6 +698,74 @@
                 status.className = 'status-indicator disconnected';
             }
         }
+
+<div id="private-chat-modal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h3>Приватный чат с <span id="chat-with-name"></span></h3>
+        <div id="private-chat-messages"></div>
+        <input type="text" id="private-message-input">
+        <button onclick="sendPrivateMessage()">Отправить</button>
+    </div>
+</div>
+
+<style>
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+}
+
+.modal-content {
+    background: white;
+    margin: 15% auto;
+    padding: 20px;
+    width: 80%;
+    max-width: 600px;
+}
+</style>
+
+<script>
+// Обработчик клика на маркере
+function setupMarkerClick(user) {
+    const popupContent = `
+        <b>${user.name}</b>
+        <button onclick="buildRouteToUser([${user.position}])">Маршрут</button>
+        <button onclick="openPrivateChat('${user.id}', '${user.name}')">Чат</button>
+    `;
+    
+    this.bindPopup(popupContent).on('popupopen', () => {
+        // Обработчики событий для кнопок
+    });
+}
+
+// Открытие приватного чата
+function openPrivateChat(userId, userName) {
+    document.getElementById('chat-with-name').textContent = userName;
+    document.getElementById('private-chat-modal').style.display = 'block';
+    currentChatUserId = userId;
+}
+
+// Отправка приватного сообщения
+function sendPrivateMessage() {
+    const message = document.getElementById('private-message-input').value;
+    socket.emit('privateMessage', {
+        to: currentChatUserId,
+        message: message
+    });
+}
+
+// Получение приватного сообщения
+socket.on('privateMessage', (data) => {
+    appendPrivateMessage(data.from, data.message);
+});
+</script>
+        
     </script>
 </body>
 </html>

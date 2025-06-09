@@ -504,6 +504,50 @@
             margin: 10px 0;
         }
 
+        /* Стили для статистики маршрута */
+        .route-stats {
+            background: linear-gradient(145deg, #1a252f, #2c3e50);
+            border: 2px solid #5d6d7e;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+            color: #ecf0f1;
+        }
+
+        .route-stats h4 {
+            margin-bottom: 10px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #3498db;
+        }
+
+        .route-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .route-stat-item {
+            background: linear-gradient(145deg, #2c3e50, #34495e);
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .route-stat-item .value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #2ecc71;
+            margin: 5px 0;
+        }
+
+        .route-stat-item .label {
+            font-size: 0.8em;
+            text-transform: uppercase;
+            color: #bdc3c7;
+        }
+
         /* Кастомизация скроллбара */
         ::-webkit-scrollbar {
             width: 8px;
@@ -561,6 +605,10 @@
                 width: 90%;
                 max-width: 320px;
             }
+
+            .route-stats-grid {
+                grid-template-columns: 1fr;
+            }
         }
 
         /* Анимации для брутальности */
@@ -599,6 +647,7 @@
                 <label>Твой статус:</label>
                 <select id="status-select" onchange="updateStatus()">
                     <option value="🏍️ Готов к заезду">🏍️ Готов к заезду</option>
+                    <option value="🚲 Вело">🚲 Вело</option>
                     <option value="🎤 Иду на концерт">🎤 Иду на концерт</option>
                     <option value="☕ Чаи пинаю">☕ Чаи пинаю</option>
                     <option value="⛰️ Покоряю вершины">⛰️ Покоряю вершины</option>
@@ -628,6 +677,10 @@
                     <label>
                         <input type="checkbox" checked data-status="🏍️"> 
                         🏍️ Мотоциклисты
+                    </label>
+                    <label>
+                        <input type="checkbox" checked data-status="🚲"> 
+                        🚲 Вело
                     </label>
                     <label>
                         <input type="checkbox" checked data-status="🎤"> 
@@ -661,6 +714,25 @@
                 </div>
             </div>
 
+            <!-- Статистика маршрута -->
+            <div id="route-stats" class="route-stats" style="display: none;">
+                <h4>Статистика маршрута</h4>
+                <div class="route-stats-grid">
+                    <div class="route-stat-item">
+                        <div class="label">Дистанция</div>
+                        <div id="route-distance" class="value">0 км</div>
+                    </div>
+                    <div class="route-stat-item">
+                        <div class="label">Время</div>
+                        <div id="route-time" class="value">0 мин</div>
+                    </div>
+                    <div class="route-stat-item">
+                        <div class="label">Скорость</div>
+                        <div id="route-speed" class="value">0 км/ч</div>
+                    </div>
+                </div>
+            </div>
+
             <div class="chat-section">
                 <h3>Групповой чат</h3>
                 <div id="chat-messages"></div>
@@ -677,7 +749,7 @@
         <div class="modal-content">
             <h3>Чат с <span id="chat-with-name"></span></h3>
             <div id="private-chat-messages"></div>
-            <input type="text" id="private-message-input" placeholder="Сообщение...">
+            <input type="text" id="private-message-input" placeholder="Сообщение..." onkeypress="handlePrivateEnterKey(event)">
             <button onclick="sendPrivateMessage()">Отправить</button>
             <button onclick="closeChatModal()">Закрыть</button>
         </div>
@@ -703,6 +775,7 @@
 
         const statusColors = {
             '🏍️ Готов к заезду': '#e74c3c',
+            '🚲 Вело': '#27ae60',
             '🎤 Иду на концерт': '#9b59b6',
             '☕ Чаи пинаю': '#f39c12',
             '⛰️ Покоряю вершины': '#27ae60',
@@ -783,9 +856,17 @@
             socket.on('chat', (message) => addChatMessage(message));
 
             socket.on('privateMessage', (data) => {
-                const messages = document.getElementById('private-chat-messages');
-                messages.innerHTML += `<div><b>${data.from}:</b> ${data.text}</div>`;
-                messages.scrollTop = messages.scrollHeight;
+                // Проверяем, открыт ли чат с этим пользователем
+                if (currentChatUserId === data.from) {
+                    const messages = document.getElementById('private-chat-messages');
+                    messages.innerHTML += `<div><b>${data.from}:</b> ${data.text}</div>`;
+                    messages.scrollTop = messages.scrollHeight;
+                } else {
+                    // Если чат не открыт, показываем уведомление
+                    const user = Array.from(allUsers.values()).find(u => u.id === data.from);
+                    const userName = user ? user.name : 'Пользователь';
+                    addSystemMessage(`Новое сообщение от ${userName}: ${data.text}`);
+                }
             });
         }
 
@@ -886,6 +967,7 @@
 
             currentChatUserId = userId;
             document.getElementById('chat-with-name').textContent = user.name;
+            document.getElementById('private-chat-messages').innerHTML = ''; // Очищаем историю
             document.getElementById('chat-modal').style.display = 'block';
         }
 
@@ -899,11 +981,24 @@
             const message = input.value.trim();
             
             if (message && currentChatUserId) {
+                // Добавляем сообщение в чат локально
+                const messages = document.getElementById('private-chat-messages');
+                messages.innerHTML += `<div><b>Вы:</b> ${message}</div>`;
+                messages.scrollTop = messages.scrollHeight;
+                
+                // Отправляем на сервер
                 socket.emit('privateMessage', {
                     to: currentChatUserId,
                     text: message
                 });
+                
                 input.value = '';
+            }
+        }
+
+        function handlePrivateEnterKey(event) {
+            if (event.key === 'Enter') {
+                sendPrivateMessage();
             }
         }
 
@@ -917,6 +1012,14 @@
                 map.removeControl(routingControl);
             }
 
+            // Определяем профиль маршрута в зависимости от статуса
+            let profile = 'driving';
+            if (currentUser.status === '🚲 Вело') {
+                profile = 'cycling';
+            } else if (currentUser.status === '⛰️ Покоряю вершины') {
+                profile = 'walking';
+            }
+
             routingControl = L.Routing.control({
                 waypoints: [
                     L.latLng(currentUser.position[0], currentUser.position[1]),
@@ -928,13 +1031,38 @@
                 draggableWaypoints: false,
                 fitSelectedRoutes: true,
                 router: L.Routing.osrmv1({
-                    serviceUrl: 'https://router.project-osrm.org/route/v1'
+                    serviceUrl: 'https://router.project-osrm.org/route/v1',
+                    profile: profile
                 }),
                 formatter: new L.Routing.Formatter({
                     language: 'ru',
                     units: 'metric'
                 })
             }).addTo(map);
+
+            // Обработчик события получения маршрута
+            routingControl.on('routesfound', function(e) {
+                const routes = e.routes;
+                const summary = routes[0].summary;
+                
+                // Расчет скорости в зависимости от профиля
+                let speed;
+                if (profile === 'cycling') {
+                    speed = 15; // средняя скорость велосипедиста в км/ч
+                } else if (profile === 'walking') {
+                    speed = 5; // средняя скорость пешехода в км/ч
+                } else {
+                    speed = 60; // средняя скорость автомобиля в км/ч
+                }
+                
+                // Обновляем статистику маршрута
+                document.getElementById('route-distance').textContent = (summary.totalDistance / 1000).toFixed(1) + ' км';
+                document.getElementById('route-time').textContent = Math.round(summary.totalTime / 60) + ' мин';
+                document.getElementById('route-speed').textContent = speed + ' км/ч';
+                
+                // Показываем блок статистики
+                document.getElementById('route-stats').style.display = 'block';
+            });
 
             addSystemMessage('🗺️ Маршрут построен!');
         }
@@ -1037,6 +1165,15 @@
             currentUser.position = null;
             socket.emit('register', currentUser);
             addSystemMessage('GPS выключен');
+            
+            // Скрываем статистику маршрута
+            document.getElementById('route-stats').style.display = 'none';
+            
+            // Удаляем маршрут, если он есть
+            if (routingControl) {
+                map.removeControl(routingControl);
+                routingControl = null;
+            }
         }
 
         function updateMyMarker(coords) {
@@ -1143,7 +1280,9 @@
 
         document.addEventListener('click', (e) => {
             const modal = document.getElementById('chat-modal');
-            if (!modal.contains(e.target) && e.target.closest('.leaflet-popup') === null) {
+            if (modal.style.display === 'block' && 
+                !modal.contains(e.target) && 
+                e.target.closest('.leaflet-popup') === null) {
                 closeChatModal();
             }
         });

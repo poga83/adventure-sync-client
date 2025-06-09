@@ -375,7 +375,7 @@
 
         #chat-messages {
             height: 180px;
-            overflow-y: auto;
+            overflow-y auto;
             border: 2px solid #5d6d7e;
             padding: 15px;
             background: linear-gradient(145deg, #1a252f, #2c3e50);
@@ -632,7 +632,8 @@
                 <h1>🚀 Adventure Sync</h1>
                 <p>Координируй приключения с друзьями!</p>
                 <input type="text" id="username" placeholder="Введи свой ник" maxlength="20">
-                <button onclick="handleLogin()">Начать приключение!</button>
+                <!-- Кнопка теперь называется "Войти" -->
+                <button onclick="handleLogin()">Войти</button>
             </div>
         </div>
 
@@ -834,12 +835,24 @@
         }
 
         function initSocket() {
-            socket = io('https://adventure-sync-server.onrender.com');
+            socket = io('https://adventure-sync-server.onrender.com', {
+                // Включите ретраи и авто-переподключение
+                reconnection: true,
+                reconnectionAttempts: Infinity,
+                reconnectionDelay: 1000,
+                reconnectionDelayMax: 5000,
+                timeout: 20000
+            });
 
             socket.on('connect', () => {
                 currentUser.id = socket.id;
                 updateConnectionStatus(true);
-                socket.emit('register', currentUser);
+                socket.emit('register', {
+                    id: socket.id,
+                    name: currentUser.name,
+                    status: currentUser.status,
+                    position: currentUser.position
+                });
                 addSystemMessage('Подключение установлено!');
             });
 
@@ -855,14 +868,18 @@
 
             socket.on('chat', (message) => addChatMessage(message));
 
+            // Приватные сообщения: теперь сообщения приходят только от нужного пользователя
             socket.on('privateMessage', (data) => {
-                // Проверяем, открыт ли чат с этим пользователем
+                console.log('Получено приватное сообщение:', data);
+                // Если чат открыт с этим пользователем — показываем сообщение
                 if (currentChatUserId === data.from) {
                     const messages = document.getElementById('private-chat-messages');
-                    messages.innerHTML += `<div><b>${data.from}:</b> ${data.text}</div>`;
+                    const user = Array.from(allUsers.values()).find(u => u.id === data.from);
+                    const userName = user ? user.name : 'Пользователь';
+                    messages.innerHTML += `<div><b>${userName}:</b> ${data.text}</div>`;
                     messages.scrollTop = messages.scrollHeight;
                 } else {
-                    // Если чат не открыт, показываем уведомление
+                    // Если чат не открыт — показываем уведомление
                     const user = Array.from(allUsers.values()).find(u => u.id === data.from);
                     const userName = user ? user.name : 'Пользователь';
                     addSystemMessage(`Новое сообщение от ${userName}: ${data.text}`);
@@ -989,6 +1006,7 @@
                 // Отправляем на сервер
                 socket.emit('privateMessage', {
                     to: currentChatUserId,
+                    from: socket.id,
                     text: message
                 });
                 
@@ -1043,25 +1061,21 @@
             // Обработчик события получения маршрута
             routingControl.on('routesfound', function(e) {
                 const routes = e.routes;
-                const summary = routes[0].summary;
-                
-                // Расчет скорости в зависимости от профиля
-                let speed;
-                if (profile === 'cycling') {
-                    speed = 15; // средняя скорость велосипедиста в км/ч
-                } else if (profile === 'walking') {
-                    speed = 5; // средняя скорость пешехода в км/ч
-                } else {
-                    speed = 60; // средняя скорость автомобиля в км/ч
+                if (routes && routes.length > 0) {
+                    const summary = routes[0].summary;
+                    const distance = (summary.totalDistance / 1000).toFixed(1);
+                    const time = Math.round(summary.totalTime / 60);
+                    // Расчет средней скорости (км/ч)
+                    const speed = (distance / (summary.totalTime / 3600)).toFixed(1);
+                    
+                    // Обновляем статистику маршрута
+                    document.getElementById('route-distance').textContent = distance + ' км';
+                    document.getElementById('route-time').textContent = time + ' мин';
+                    document.getElementById('route-speed').textContent = speed + ' км/ч';
+                    
+                    // Показываем блок статистики
+                    document.getElementById('route-stats').style.display = 'block';
                 }
-                
-                // Обновляем статистику маршрута
-                document.getElementById('route-distance').textContent = (summary.totalDistance / 1000).toFixed(1) + ' км';
-                document.getElementById('route-time').textContent = Math.round(summary.totalTime / 60) + ' мин';
-                document.getElementById('route-speed').textContent = speed + ' км/ч';
-                
-                // Показываем блок статистики
-                document.getElementById('route-stats').style.display = 'block';
             });
 
             addSystemMessage('🗺️ Маршрут построен!');
@@ -1100,7 +1114,12 @@
             const newStatus = document.getElementById('status-select').value;
             if (newStatus !== currentUser.status) {
                 currentUser.status = newStatus;
-                socket.emit('register', currentUser);
+                socket.emit('register', {
+                    id: socket.id,
+                    name: currentUser.name,
+                    status: currentUser.status,
+                    position: currentUser.position
+                });
                 
                 if (userMarker && currentUser.position) {
                     updateMyMarker(currentUser.position);
@@ -1119,7 +1138,12 @@
                     currentUser.position = coords;
                     
                     socket.emit('position', coords);
-                    socket.emit('register', currentUser);
+                    socket.emit('register', {
+                        id: socket.id,
+                        name: currentUser.name,
+                        status: currentUser.status,
+                        position: coords
+                    });
                     updateMyMarker(coords);
                     map.setView(coords, 15);
                     
@@ -1131,7 +1155,12 @@
                             const newCoords = [pos.coords.latitude, pos.coords.longitude];
                             currentUser.position = newCoords;
                             socket.emit('position', newCoords);
-                            socket.emit('register', currentUser);
+                            socket.emit('register', {
+                                id: socket.id,
+                                name: currentUser.name,
+                                status: currentUser.status,
+                                position: newCoords
+                            });
                             updateMyMarker(newCoords);
                         },
                         (error) => console.warn('Ошибка отслеживания:', error),
@@ -1163,7 +1192,12 @@
             }
 
             currentUser.position = null;
-            socket.emit('register', currentUser);
+            socket.emit('register', {
+                id: socket.id,
+                name: currentUser.name,
+                status: currentUser.status,
+                position: null
+            });
             addSystemMessage('GPS выключен');
             
             // Скрываем статистику маршрута

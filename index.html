@@ -3,119 +3,118 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <title>Чат с картой</title>
+  <title>Чат с картой (Реальные пользователи)</title>
 
-  <!-- Leaflet CSS (убраны integrity и crossorigin) -->
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-  />
-  <!-- Routing Machine CSS -->
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css"
-  />
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
 
   <style>
     html, body { margin:0; padding:0; height:100%; font-family:'Segoe UI',sans-serif; }
     .chat-container { display:flex; height:100vh; }
-    .sidebar { display:flex; flex-direction:column; width:300px; background:#f8f9fa; border-right:1px solid #e9ecef; }
-    #map { width:100%; height:300px; }
-    .contacts-list { flex:1; overflow-y:auto; padding:0; margin:0; list-style:none; }
-    .chat-area { display:flex; flex-direction:column; flex:1; }
-    .chat-header { padding:15px; background:#fff; border-bottom:1px solid #e9ecef; }
-    .messages-container { flex:1; padding:15px; overflow-y:auto; background:#f8f9fa; }
-    .input-container { display:none; padding:15px; background:#fff; border-top:1px solid #e9ecef; gap:10px; }
-    .message-input { flex:1; padding:10px; border:1px solid #dee2e6; border-radius:20px; resize:none; outline:none; }
-    .send-btn { padding:0 15px; border:none; background:#007bff; color:#fff; border-radius:20px; cursor:pointer; }
-    .message { margin-bottom:10px; }
+    /* Сайдбар */
+    .sidebar {
+      width:300px;
+      background:#f8f9fa;
+      display:flex;
+      flex-direction:column;
+      border-right:1px solid #e9ecef;
+    }
+    #map { flex:0 0 300px; height:300px; }
+    .contacts-list { flex:1; overflow-y:auto; margin:0; padding:0; list-style:none; }
+    .contacts-list li {
+      padding:10px; cursor:pointer; border-bottom:1px solid #e9ecef;
+    }
+    .contacts-list li:hover { background:#e9ecef; }
+    /* Область чата */
+    .chat-area {
+      flex:1; display:flex; flex-direction:column;
+    }
+    .chat-header {
+      padding:15px; background:#fff; border-bottom:1px solid #e9ecef;
+    }
+    .messages-container {
+      flex:1; padding:15px; overflow-y:auto; background:#f8f9fa;
+    }
+    .input-container {
+      display:none; padding:15px; background:#fff; border-top:1px solid #e9ecef;
+      gap:10px; flex-wrap:wrap;
+    }
+    .message-input {
+      flex:1; padding:10px; border:1px solid #dee2e6;
+      border-radius:20px; resize:none; outline:none;
+    }
+    .send-btn {
+      padding:0 15px; border:none; background:#007bff;
+      color:#fff; border-radius:20px; cursor:pointer;
+    }
+    /* Адаптив */
+    @media (max-width:768px) {
+      .sidebar { display:none; }
+      .sidebar.show { display:flex; position:absolute; z-index:1000; }
+    }
   </style>
 </head>
-
 <body>
   <div class="chat-container">
-    <div class="sidebar">
+    <div class="sidebar" id="sidebar">
       <div id="map"></div>
       <ul class="contacts-list" id="contactsList"></ul>
     </div>
-
     <div class="chat-area">
       <div class="chat-header">
         <h3 id="chatTitle">Выберите пользователя на карте</h3>
       </div>
       <div class="messages-container" id="messagesContainer"></div>
       <div class="input-container" id="inputContainer">
-        <textarea
-          id="messageInput"
-          class="message-input"
-          rows="2"
-          placeholder="Введите сообщение"
-        ></textarea>
+        <textarea id="messageInput" class="message-input" rows="2" placeholder="Введите сообщение"></textarea>
         <button id="sendBtn" class="send-btn">Отправить</button>
       </div>
     </div>
   </div>
 
-  <!-- Leaflet JS (без integrity и crossorigin) -->
+  <!-- Leaflet JS и MarkerCluster -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <!-- Routing Machine JS -->
-  <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 
   <script>
     // Инициализация карты
-    const map = L.map('map').setView([55.751244, 37.618423], 10); // Москва по умолчанию[2]
+    const map = L.map('map').setView([55.751244,37.618423],10)[2];
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors'
-    }).addTo(map);
+      attribution:'© OpenStreetMap contributors'
+    }).addTo(map)[2];
 
-    // Пример пользователей с координатами
-    const users = [
-      { id: 'alice', name: 'Алиса', coords: [55.75, 37.61] },
-      { id: 'bob',   name: 'Борис', coords: [55.80, 37.70] },
-      { id: 'charlie', name: 'Чарли', coords: [55.70, 37.60] }
-    ];
+    // Группа кластеров с потоковой загрузкой
+    const markers = L.markerClusterGroup({ chunkedLoading: true })[2];
+    map.addLayer(markers)[2];
 
-    // Данные текущего пользователя
-    const currentUser = { id: 'me', coords: [55.76, 37.64] };
     const messages = {};
+    let currentContactId = null;
 
-    // Добавление маркеров и списка контактов
-    users.forEach(u => {
-      // Маркер на карте
-      const marker = L.marker(u.coords).addTo(map).bindPopup(u.name);
-      marker.on('click', () => openPrivateChat(u));
+    // Получение данных реальных пользователей с API
+    fetch('/api/users') // URL вашего сервера
+      .then(res => res.json())
+      .then(users => {
+        users.forEach(u => {
+          const marker = L.marker([u.lat, u.lng]).bindPopup(u.name)[6];
+          marker.on('click', () => openChat(u));
+          markers.addLayer(marker)[2];
 
-      // Альтернативно: элемент списка контактов
-      const li = document.createElement('li');
-      li.textContent = u.name;
-      li.style.padding = '10px';
-      li.style.cursor = 'pointer';
-      li.onclick = () => openPrivateChat(u);
-      document.getElementById('contactsList').appendChild(li);
-    });
+          // Добавляем в список контактов
+          const li = document.createElement('li');
+          li.textContent = u.name + (u.online?' (онлайн)':'');
+          li.onclick = () => openChat(u);
+          document.getElementById('contactsList').appendChild(li)[7];
+        });
+      });
 
-    // Открытие приватного чата и построение маршрута
-    function openPrivateChat(user) {
-      // Удаляем предыдущий маршрут, если был
-      if (window.routeCtrl) {
-        map.removeControl(window.routeCtrl);
-      }
-
-      // Обновляем заголовок и показываем поле ввода
+    // Открытие приватного чата
+    function openChat(user) {
+      currentContactId = user.id;
       document.getElementById('chatTitle').textContent = `Чат с ${user.name}`;
       document.getElementById('inputContainer').style.display = 'flex';
       loadMessages(user.id);
-
-      // Строим маршрут до пользователя
-      window.routeCtrl = L.Routing.control({
-        waypoints: [
-          L.latLng(currentUser.coords),
-          L.latLng(user.coords)
-        ],
-        lineOptions: { styles: [{ color: '#007bff', weight: 4 }] },
-        addWaypoints: false,
-        routeWhileDragging: false
-      }).addTo(map);
     }
 
     // Загрузка и отображение сообщений
@@ -124,22 +123,19 @@
       container.innerHTML = '';
       (messages[contactId] || []).forEach(m => {
         const div = document.createElement('div');
-        div.className = 'message';
-        div.textContent = `${m.sender === 'me' ? 'Я' : m.sender}: ${m.text}`;
+        div.textContent = `${m.sender==='me'?'Я':m.sender}: ${m.text}`;
         container.appendChild(div);
       });
       container.scrollTop = container.scrollHeight;
     }
 
-    // Отправка нового сообщения
+    // Отправка сообщения
     document.getElementById('sendBtn').onclick = () => {
       const txt = document.getElementById('messageInput').value.trim();
-      if (!txt) return;
-      const title = document.getElementById('chatTitle').textContent;
-      const contactId = title.split(' ')[2].toLowerCase();
-      if (!messages[contactId]) messages[contactId] = [];
-      messages[contactId].push({ sender: 'me', text: txt });
-      loadMessages(contactId);
+      if (!txt || !currentContactId) return;
+      messages[currentContactId] = messages[currentContactId] || [];
+      messages[currentContactId].push({ sender:'me', text:txt });
+      loadMessages(currentContactId);
       document.getElementById('messageInput').value = '';
     };
   </script>

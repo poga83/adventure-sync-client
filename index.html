@@ -194,17 +194,12 @@
             border-color: #e74c3c;
         }
 
-        .controls button.meetup {
-            background: linear-gradient(145deg, #f39c12, #e67e22);
-            border-color: #f39c12;
-        }
-
-        .controls button.marker {
+        .controls button.group-route {
             background: linear-gradient(145deg, #9b59b6, #8e44ad);
             border-color: #9b59b6;
         }
 
-        /* Контейнер карты - занимает основное пространство */
+        /* Контейнер карты */
         .map-container {
             position: relative;
             flex: 1;
@@ -232,82 +227,217 @@
             max-width: 200px;
         }
 
-        .meetup-info {
+        .route-info {
             top: 8px;
             left: 8px;
-            background: rgba(243, 156, 18, 0.9);
+            background: rgba(155, 89, 182, 0.9);
             display: none;
         }
 
-        .travel-time-info {
-            bottom: 60px;
-            left: 8px;
-            background: rgba(39, 174, 96, 0.9);
-            display: none;
-        }
-
-        /* Плавающая кнопка действий */
-        .fab-container {
-            position: absolute;
-            bottom: 12px;
-            right: 12px;
-            z-index: 85;
-        }
-
-        .fab-button {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background: linear-gradient(145deg, #3498db, #2980b9);
-            color: white;
-            border: none;
-            font-size: 20px;
-            font-weight: bold;
-            cursor: pointer;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
-        }
-
-        .fab-button.active {
-            background: linear-gradient(145deg, #e74c3c, #c0392b);
-            transform: rotate(45deg);
-        }
-
-        .fab-menu {
-            position: absolute;
-            bottom: 60px;
-            right: 0;
-            background: rgba(44, 62, 80, 0.95);
-            border-radius: 8px;
-            padding: 8px;
+        /* Приватный чат */
+        .private-chat {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 300px;
+            max-height: 400px;
+            background: linear-gradient(145deg, #2c3e50, #34495e);
+            border-radius: 10px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.5);
+            border: 2px solid #5d6d7e;
+            z-index: 200;
             display: none;
             flex-direction: column;
-            gap: 6px;
-            min-width: 140px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
         }
 
-        .fab-menu button {
-            background: transparent;
-            border: none;
-            color: white;
-            padding: 8px 12px;
-            text-align: left;
-            font-size: 12px;
-            cursor: pointer;
-            border-radius: 4px;
-            min-height: 36px;
+        .chat-header {
+            padding: 12px;
+            background: rgba(26, 37, 47, 0.8);
+            border-radius: 8px 8px 0 0;
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            gap: 8px;
-            font-weight: bold;
         }
 
-        .fab-menu button:hover {
-            background: rgba(255,255,255,0.1);
+        .chat-header h3 {
+            margin: 0;
+            font-size: 14px;
+            color: #ecf0f1;
+        }
+
+        .chat-close {
+            background: none;
+            border: none;
+            color: #ecf0f1;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 0;
+            width: 24px;
+            height: 24px;
+        }
+
+        .private-messages {
+            flex: 1;
+            max-height: 250px;
+            overflow-y: auto;
+            padding: 10px;
+            background: rgba(26, 37, 47, 0.5);
+        }
+
+        .private-message {
+            margin: 6px 0;
+            padding: 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            max-width: 85%;
+            word-wrap: break-word;
+        }
+
+        .private-message.from-me {
+            background: linear-gradient(145deg, #3498db, #2980b9);
+            margin-left: auto;
+            text-align: right;
+        }
+
+        .private-message.from-other {
+            background: linear-gradient(145deg, #95a5a6, #7f8c8d);
+            margin-right: auto;
+        }
+
+        .private-chat-input {
+            display: flex;
+            padding: 10px;
+            gap: 8px;
+        }
+
+        .private-chat-input input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #5d6d7e;
+            border-radius: 6px;
+            background: #2c3e50;
+            color: #ecf0f1;
+            font-size: 12px;
+        }
+
+        .private-chat-input button {
+            padding: 8px 12px;
+            background: linear-gradient(145deg, #3498db, #2980b9);
+            color: #ecf0f1;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        /* Модальные окна */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            z-index: 300;
+            overflow-y: auto;
+        }
+
+        .modal-content {
+            background: linear-gradient(145deg, #2c3e50, #34495e);
+            margin: 20px auto;
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 500px;
+            width: calc(100% - 40px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.7);
+            border: 2px solid #5d6d7e;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            color: #ecf0f1;
+            font-size: 18px;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: #ecf0f1;
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        .modal input, .modal textarea, .modal select {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border: 1px solid #5d6d7e;
+            border-radius: 6px;
+            background: #1a252f;
+            color: #ecf0f1;
+            font-size: 14px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .modal button {
+            padding: 10px 20px;
+            background: linear-gradient(145deg, #5d6d7e, #34495e);
+            color: #ecf0f1;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .modal button.primary {
+            background: linear-gradient(145deg, #3498db, #2980b9);
+        }
+
+        /* Групповые маршруты */
+        .group-routes-panel {
+            position: absolute;
+            top: 60px;
+            right: 10px;
+            z-index: 85;
+            background: rgba(44, 62, 80, 0.95);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            min-width: 250px;
+            max-width: 300px;
+            display: none;
+        }
+
+        .route-item {
+            padding: 10px;
+            margin: 5px 0;
+            background: rgba(52, 73, 94, 0.8);
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .route-item:hover {
+            background: rgba(52, 73, 94, 1);
+        }
+
+        .route-item.active {
+            background: linear-gradient(145deg, #3498db, #2980b9);
         }
 
         /* Компактная секция чата */
@@ -316,7 +446,7 @@
             border-top: 2px solid #1a252f;
             flex-shrink: 0;
             z-index: 70;
-            max-height: 35vh;
+            max-height: 30vh;
             display: flex;
             flex-direction: column;
             transition: all 0.3s ease;
@@ -325,22 +455,6 @@
         .chat-section.minimized {
             max-height: 44px;
             overflow: hidden;
-        }
-
-        .chat-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 12px;
-            background: rgba(26, 37, 47, 0.5);
-            min-height: 44px;
-        }
-
-        .chat-header h3 {
-            color: #ecf0f1;
-            font-weight: 900;
-            font-size: 14px;
-            margin: 0;
         }
 
         .chat-toggle {
@@ -360,7 +474,6 @@
             background: rgba(26, 37, 47, 0.3);
             flex: 1;
             min-height: 0;
-            -webkit-overflow-scrolling: touch;
         }
 
         .message {
@@ -411,198 +524,7 @@
             min-width: 36px;
         }
 
-        /* Модальные окна */
-        .modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.85);
-            display: none;
-            z-index: 200;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        .modal-content {
-            background: linear-gradient(145deg, #2c3e50, #34495e);
-            margin: 20px auto;
-            padding: 16px;
-            border-radius: 10px;
-            max-width: 350px;
-            width: calc(100% - 40px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.7);
-            border: 2px solid #5d6d7e;
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 16px;
-        }
-
-        .modal-header h3 {
-            margin: 0;
-            font-weight: 900;
-            font-size: 16px;
-            color: #ecf0f1;
-        }
-
-        .modal-close {
-            background: none;
-            border: none;
-            color: #ecf0f1;
-            font-size: 20px;
-            cursor: pointer;
-            padding: 0;
-            min-width: 32px;
-            min-height: 32px;
-        }
-
-        .modal input, .modal textarea, .modal select {
-            width: 100%;
-            padding: 10px;
-            margin: 8px 0;
-            border: 1px solid #5d6d7e;
-            border-radius: 6px;
-            background: #1a252f;
-            color: #ecf0f1;
-            font-size: 14px;
-        }
-
-        .modal textarea {
-            resize: vertical;
-            min-height: 60px;
-            max-height: 120px;
-        }
-
-        .modal-buttons {
-            display: flex;
-            justify-content: flex-end;
-            gap: 8px;
-            margin-top: 16px;
-            flex-wrap: wrap;
-        }
-
-        .modal button {
-            padding: 8px 16px;
-            background: linear-gradient(145deg, #5d6d7e, #34495e);
-            color: #ecf0f1;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 12px;
-            min-height: 36px;
-        }
-
-        .modal button.primary {
-            background: linear-gradient(145deg, #3498db, #2980b9);
-        }
-
-        .modal button.danger {
-            background: linear-gradient(145deg, #e74c3c, #c0392b);
-        }
-
-        /* Приватный чат */
-        #private-chat-messages {
-            height: 180px;
-            overflow-y: auto;
-            background: rgba(26, 37, 47, 0.8);
-            border: 1px solid #5d6d7e;
-            border-radius: 6px;
-            padding: 8px;
-            margin: 8px 0;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        .private-message {
-            margin: 6px 0;
-            padding: 6px 8px;
-            border-radius: 6px;
-            font-size: 12px;
-            max-width: 85%;
-            word-wrap: break-word;
-        }
-
-        .private-message.from-me {
-            background: linear-gradient(145deg, #3498db, #2980b9);
-            margin-left: auto;
-            text-align: right;
-        }
-
-        .private-message.from-other {
-            background: linear-gradient(145deg, #95a5a6, #7f8c8d);
-            margin-right: auto;
-        }
-
-        /* Стили для пользовательских меток */
-        .custom-marker {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.6);
-            border: 2px solid white;
-            font-weight: bold;
-        }
-
-        .custom-marker.event-marker {
-            background: #e74c3c;
-        }
-
-        .custom-marker.meeting-marker {
-            background: #3498db;
-        }
-
-        .custom-marker.note-marker {
-            background: #2ecc71;
-        }
-
-        .custom-marker.warning-marker {
-            background: #f39c12;
-        }
-
-        /* Уведомления */
-        .notification {
-            position: fixed;
-            top: 50px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: linear-gradient(145deg, #3498db, #2980b9);
-            color: white;
-            padding: 10px 16px;
-            border-radius: 6px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-            z-index: 300;
-            font-weight: bold;
-            font-size: 12px;
-            max-width: 90%;
-            text-align: center;
-            animation: slideDown 0.3s ease;
-        }
-
-        @keyframes slideDown {
-            from { transform: translate(-50%, -100%); opacity: 0; }
-            to { transform: translate(-50%, 0); opacity: 1; }
-        }
-
-        .notification.disappear {
-            animation: slideUp 0.3s ease forwards;
-        }
-
-        @keyframes slideUp {
-            from { transform: translate(-50%, 0); opacity: 1; }
-            to { transform: translate(-50%, -100%); opacity: 0; }
-        }
-
-        /* Стили для Leaflet */
+        /* Стили для leaflet */
         .leaflet-div-icon {
             background: transparent !important;
             border: none !important;
@@ -626,55 +548,37 @@
             min-width: 60px;
         }
 
-        .leaflet-control-zoom a {
-            width: 36px !important;
-            height: 36px !important;
-            line-height: 34px !important;
-            font-size: 16px !important;
+        /* Уведомления */
+        .notification {
+            position: fixed;
+            top: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(145deg, #3498db, #2980b9);
+            color: white;
+            padding: 10px 16px;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            z-index: 400;
+            font-weight: bold;
+            font-size: 12px;
+            max-width: 90%;
+            text-align: center;
+            animation: slideDown 0.3s ease;
         }
 
-        .leaflet-control-attribution {
-            font-size: 8px !important;
-            background: rgba(0,0,0,0.5) !important;
-            color: white !important;
+        @keyframes slideDown {
+            from { transform: translate(-50%, -100%); opacity: 0; }
+            to { transform: translate(-50%, 0); opacity: 1; }
         }
 
-        /* Дополнительные стили для мобильной оптимизации */
-        @media (max-width: 480px) {
-            .modal-content {
-                margin: 10px auto;
-                padding: 12px;
-                width: calc(100% - 20px);
-            }
-            
-            .controls {
-                gap: 4px;
-            }
-            
-            .controls select, .controls button {
-                font-size: 11px;
-                padding: 6px 8px;
-                min-height: 32px;
-            }
-            
-            .chat-section {
-                max-height: 30vh;
-            }
+        .notification.disappear {
+            animation: slideUp 0.3s ease forwards;
         }
 
-        /* Стили для скрытия элементов */
-        .hidden {
-            display: none !important;
-        }
-
-        /* Анимации */
-        .fade-in {
-            animation: fadeIn 0.3s ease;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+        @keyframes slideUp {
+            from { transform: translate(-50%, 0); opacity: 1; }
+            to { transform: translate(-50%, -100%); opacity: 0; }
         }
     </style>
 </head>
@@ -693,61 +597,52 @@
 
         <!-- Основное приложение -->
         <div id="app-screen">
-            <!-- Компактный заголовок -->
+            <!-- Заголовок -->
             <div class="header">
                 <h2>Adventure Sync</h2>
                 <span id="connection-status" class="status-indicator">Подключение...</span>
             </div>
 
-            <!-- Компактная панель управления -->
+            <!-- Панель управления -->
             <div class="controls">
                 <select id="status-select" onchange="updateStatus()">
                     <option value="🏍️ Мото">🏍️ Мото</option>
                     <option value="🚲 Вело">🚲 Вело</option>
                     <option value="🚶 Пешкодрали">🚶 Пешкодрали</option>
                     <option value="☕ Чаи пинаю">☕ Чаи пинаю</option>
+                    <option value="🚗 Авто">🚗 Авто</option>
                     <option value="🟢 Свободен">🟢 Свободен</option>
-                    <option value="🔴 Не беспокоить">🔴 Не беспокоить</option>
                 </select>
                 
-                <button onclick="requestLocation()" id="gps-btn">📍</button>
-                <button class="danger" onclick="stopLocationTracking()" id="stop-gps-btn">❌</button>
-                <button class="meetup" onclick="enableMeetupMode()" id="meetup-btn">🎯</button>
-                <button class="marker" onclick="enableMarkerMode()" id="marker-btn">📍</button>
+                <button onclick="requestLocation()" id="gps-btn">📍 GPS</button>
+                <button class="danger" onclick="stopLocationTracking()">❌ GPS</button>
+                <button class="group-route" onclick="toggleGroupRoutes()">🗺️ Маршруты</button>
+                <button onclick="enableMarkerMode()">📌 Метка</button>
             </div>
 
             <!-- Контейнер карты -->
             <div class="map-container">
                 <div id="map"></div>
                 
-                <!-- Информация о точке сбора -->
-                <div id="meetup-info" class="floating-info meetup-info">
-                    <div>Точка сбора установлена</div>
-                    <div id="meetup-details"></div>
+                <!-- Информация о маршруте -->
+                <div id="route-info" class="floating-info route-info">
+                    <div>Групповой маршрут активен</div>
+                    <div id="route-details"></div>
                 </div>
 
-                <!-- Время в пути -->
-                <div id="travel-time-info" class="floating-info travel-time-info">
-                    <div id="travel-time-text"></div>
-                </div>
-
-                <!-- Плавающая кнопка действий -->
-                <div class="fab-container">
-                    <button class="fab-button" id="fab-button">⋮</button>
-                    <div class="fab-menu" id="fab-menu">
-                        <button onclick="requestLocation()">📍 GPS</button>
-                        <button onclick="enableMeetupMode()">🎯 Точка сбора</button>
-                        <button onclick="enableMarkerMode()">📍 Метка</button>
-                        <button onclick="toggleChatSection()">💬 Чат</button>
-                    </div>
+                <!-- Панель групповых маршрутов -->
+                <div class="group-routes-panel" id="group-routes-panel">
+                    <h4>Групповые маршруты</h4>
+                    <button onclick="createGroupRoute()" style="width: 100%; margin-bottom: 10px;">Создать новый маршрут</button>
+                    <div id="routes-list"></div>
                 </div>
             </div>
 
-            <!-- Компактная секция чата -->
+            <!-- Секция чата -->
             <div class="chat-section" id="chat-section">
                 <div class="chat-header">
                     <h3>Групповой чат</h3>
-                    <button class="chat-toggle" id="chat-toggle" onclick="toggleChatSection()">▼</button>
+                    <button class="chat-toggle" onclick="toggleChatSection()">▼</button>
                 </div>
                 <div id="chat-messages"></div>
                 <div class="chat-input">
@@ -758,22 +653,16 @@
         </div>
     </div>
 
-    <!-- Модальное окно приватного чата -->
-    <div id="chat-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Чат с <span id="chat-with-name"></span></h3>
-                <button class="modal-close" onclick="closeModal('chat-modal')">&times;</button>
-            </div>
-            <div id="private-chat-messages"></div>
-            <div class="chat-input">
-                <input type="text" id="private-message-input" placeholder="Сообщение..." onkeypress="handlePrivateEnterKey(event)">
-                <button onclick="sendPrivateMessage()">▶</button>
-            </div>
-            <div class="modal-buttons">
-                <button onclick="loadChatHistory()">История</button>
-                <button onclick="closeModal('chat-modal')">Закрыть</button>
-            </div>
+    <!-- Приватный чат -->
+    <div class="private-chat" id="private-chat">
+        <div class="chat-header">
+            <h3>Чат с <span id="chat-user-name"></span></h3>
+            <button class="chat-close" onclick="closePrivateChat()">&times;</button>
+        </div>
+        <div class="private-messages" id="private-messages"></div>
+        <div class="private-chat-input">
+            <input type="text" id="private-message-input" placeholder="Сообщение..." onkeypress="handlePrivateEnterKey(event)">
+            <button onclick="sendPrivateMessage()">▶</button>
         </div>
     </div>
 
@@ -785,8 +674,7 @@
                 <button class="modal-close" onclick="closeModal('marker-modal')">&times;</button>
             </div>
             <input type="text" id="marker-title" placeholder="Название метки" maxlength="50">
-            <textarea id="marker-description" placeholder="Описание (необязательно)" rows="2" maxlength="200"></textarea>
-            <input type="date" id="marker-event-date">
+            <textarea id="marker-description" placeholder="Описание (необязательно)" rows="3" maxlength="200"></textarea>
             <select id="marker-category">
                 <option value="note">📝 Заметка</option>
                 <option value="event">📅 Событие</option>
@@ -800,26 +688,22 @@
         </div>
     </div>
 
-    <!-- Модальное окно редактирования метки -->
-    <div id="edit-marker-modal" class="modal">
+    <!-- Модальное окно создания группового маршрута -->
+    <div id="group-route-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>Редактировать метку</h3>
-                <button class="modal-close" onclick="closeModal('edit-marker-modal')">&times;</button>
+                <h3>Создать групповой маршрут</h3>
+                <button class="modal-close" onclick="closeModal('group-route-modal')">&times;</button>
             </div>
-            <input type="text" id="edit-marker-title" placeholder="Название метки" maxlength="50">
-            <textarea id="edit-marker-description" placeholder="Описание (необязательно)" rows="2" maxlength="200"></textarea>
-            <input type="date" id="edit-marker-event-date">
-            <select id="edit-marker-category">
-                <option value="note">📝 Заметка</option>
-                <option value="event">📅 Событие</option>
-                <option value="meeting">👥 Встреча</option>
-                <option value="warning">⚠️ Предупреждение</option>
+            <input type="text" id="route-name" placeholder="Название маршрута" maxlength="50">
+            <textarea id="route-description" placeholder="Описание маршрута" rows="3" maxlength="200"></textarea>
+            <select id="route-type">
+                <option value="public">🌍 Публичный</option>
+                <option value="private">🔒 Приватный</option>
             </select>
             <div class="modal-buttons">
-                <button onclick="deleteCurrentMarker()" class="danger">Удалить</button>
-                <button onclick="closeModal('edit-marker-modal')">Отмена</button>
-                <button onclick="saveMarkerEdit()" class="primary">Сохранить</button>
+                <button onclick="closeModal('group-route-modal')">Отмена</button>
+                <button onclick="saveGroupRoute()" class="primary">Создать</button>
             </div>
         </div>
     </div>
@@ -832,8 +716,9 @@
         let userMarkers = new Map();
         let customMarkers = new Map();
         let markerCluster;
-        let meetupMarker = null;
         let routingControl = null;
+        let groupRoutes = new Map();
+        let activeGroupRoute = null;
         let currentUser = {
             id: null,
             name: '',
@@ -843,13 +728,9 @@
         let watchId = null;
         let isLocationTracking = false;
         let allUsers = new Map();
-        let activeUsers = new Set();
-        let currentChatUserId = null;
-        let isMeetupMode = false;
         let isMarkerMode = false;
         let pendingMarkerCoords = null;
-        let currentEditingMarkerId = null;
-        let chatHistory = new Map();
+        let currentChatUserId = null;
         let isChatMinimized = false;
 
         const statusColors = {
@@ -857,8 +738,8 @@
             '🚲 Вело': '#27ae60',
             '🚶 Пешкодрали': '#8e44ad',
             '☕ Чаи пинаю': '#f39c12',
-            '🟢 Свободен': '#3498db',
-            '🔴 Не беспокоить': '#95a5a6'
+            '🚗 Авто': '#fd7e14',
+            '🟢 Свободен': '#3498db'
         };
 
         const markerCategories = {
@@ -868,78 +749,10 @@
             'warning': { color: '#f39c12', icon: '⚠️' }
         };
 
-        // Проверка мобильного устройства
-        const isMobile = window.innerWidth <= 768;
-
-        // Инициализация после загрузки страницы
+        // Инициализация приложения
         document.addEventListener('DOMContentLoaded', function() {
-            setupFAB();
-            setupTouchOptimizations();
+            console.log('Adventure Sync загружен');
         });
-
-        // Настройка плавающей кнопки действий
-        function setupFAB() {
-            const fabButton = document.getElementById('fab-button');
-            const fabMenu = document.getElementById('fab-menu');
-            
-            fabButton.addEventListener('click', function(e) {
-                e.stopPropagation();
-                toggleFABMenu();
-            });
-            
-            document.addEventListener('click', function(event) {
-                if (!fabButton.contains(event.target) && !fabMenu.contains(event.target)) {
-                    closeFABMenu();
-                }
-            });
-        }
-
-        function toggleFABMenu() {
-            const fabButton = document.getElementById('fab-button');
-            const fabMenu = document.getElementById('fab-menu');
-            
-            if (fabMenu.style.display === 'flex') {
-                closeFABMenu();
-            } else {
-                openFABMenu();
-            }
-        }
-
-        function openFABMenu() {
-            const fabButton = document.getElementById('fab-button');
-            const fabMenu = document.getElementById('fab-menu');
-            
-            fabButton.classList.add('active');
-            fabMenu.style.display = 'flex';
-            fabMenu.classList.add('fade-in');
-        }
-
-        function closeFABMenu() {
-            const fabButton = document.getElementById('fab-button');
-            const fabMenu = document.getElementById('fab-menu');
-            
-            fabButton.classList.remove('active');
-            fabMenu.style.display = 'none';
-            fabMenu.classList.remove('fade-in');
-        }
-
-        // Настройка сенсорной оптимизации
-        function setupTouchOptimizations() {
-            // Предотвращение двойного тапа для зума
-            let lastTouchEnd = 0;
-            document.addEventListener('touchend', function (event) {
-                const now = (new Date()).getTime();
-                if (now - lastTouchEnd <= 300) {
-                    event.preventDefault();
-                }
-                lastTouchEnd = now;
-            }, false);
-
-            // Улучшение производительности скроллинга
-            document.addEventListener('touchmove', function(e) {
-                e.preventDefault();
-            }, { passive: false });
-        }
 
         // Функции уведомлений
         function showNotification(title, body, type = 'info') {
@@ -966,43 +779,6 @@
             };
         }
 
-        // Функция переключения чата
-        function toggleChatSection() {
-            const chatSection = document.getElementById('chat-section');
-            const chatToggle = document.getElementById('chat-toggle');
-            
-            if (isChatMinimized) {
-                chatSection.classList.remove('minimized');
-                chatToggle.textContent = '▼';
-                isChatMinimized = false;
-            } else {
-                chatSection.classList.add('minimized');
-                chatToggle.textContent = '▲';
-                isChatMinimized = true;
-            }
-            
-            closeFABMenu();
-        }
-
-        // Функции модальных окон
-        function closeModal(modalId) {
-            document.getElementById(modalId).style.display = 'none';
-            
-            // Очищаем формы при закрытии
-            if (modalId === 'marker-modal') {
-                document.getElementById('marker-title').value = '';
-                document.getElementById('marker-description').value = '';
-                document.getElementById('marker-event-date').value = '';
-                document.getElementById('marker-category').value = 'note';
-                pendingMarkerCoords = null;
-                isMarkerMode = false;
-            }
-            
-            if (modalId === 'edit-marker-modal') {
-                currentEditingMarkerId = null;
-            }
-        }
-
         // Функция входа в приложение
         function handleLogin() {
             const username = document.getElementById('username').value.trim();
@@ -1018,11 +794,6 @@
             document.getElementById('login-screen').style.display = 'none';
             document.getElementById('app-screen').style.display = 'flex';
             
-            // Запрос разрешения на уведомления
-            if ('Notification' in window && Notification.permission === 'default') {
-                Notification.requestPermission();
-            }
-            
             initSocket();
             initMap();
             addSystemMessage(`${username} присоединился к чату!`);
@@ -1030,7 +801,7 @@
 
         // Инициализация сокета
         function initSocket() {
-            socket = io('https://adventure-sync-server.onrender.com', {
+            socket = io('ws://localhost:3000', {
                 reconnection: true,
                 reconnectionAttempts: 10,
                 reconnectionDelay: 1000,
@@ -1059,52 +830,12 @@
                 updateUserMarkers(users);
             });
 
-            socket.on('allMarkers', (markers) => {
-                loadCustomMarkers(markers);
-            });
-
-            socket.on('markerUpdate', (data) => {
-                handleMarkerUpdate(data);
-            });
-
-            socket.on('markerCreated', (data) => {
-                if (data.success) {
-                    showNotification('Успех', 'Метка создана!', 'success');
-                }
-            });
-
-            socket.on('markerDeleted', (data) => {
-                if (data.success) {
-                    showNotification('Успех', 'Метка удалена!', 'success');
-                }
-            });
-
-            socket.on('markerEdited', (data) => {
-                if (data.success) {
-                    showNotification('Успех', 'Метка обновлена!', 'success');
-                }
-            });
-
             socket.on('chat', (message) => {
                 addChatMessage(message);
             });
 
-            socket.on('groupChatHistory', (messages) => {
-                const chatMessages = document.getElementById('chat-messages');
-                chatMessages.innerHTML = '';
-                messages.forEach(message => addChatMessage(message));
-            });
-
+            // Обработчики приватного чата
             socket.on('privateMessage', (data) => {
-                const chatKey = getChatKey(socket.id, data.from);
-                if (!chatHistory.has(chatKey)) {
-                    chatHistory.set(chatKey, []);
-                }
-                chatHistory.get(chatKey).push({
-                    ...data,
-                    fromMe: false
-                });
-                
                 if (currentChatUserId === data.from) {
                     displayPrivateMessage(data, false);
                 } else {
@@ -1114,16 +845,27 @@
                 }
             });
 
-            socket.on('meetupPointUpdate', (meetupData) => {
-                updateMeetupPoint(meetupData);
+            // Обработчики меток
+            socket.on('markerCreated', (data) => {
+                if (data.success) {
+                    showNotification('Успех', 'Метка создана!', 'success');
+                    createCustomMarkerOnMap(data.marker);
+                }
             });
 
-            socket.on('travelTimeUpdate', (data) => {
-                updateTravelTimeDisplay(data);
+            // Обработчики групповых маршрутов
+            socket.on('groupRoutes', (routes) => {
+                updateGroupRoutesList(routes);
             });
 
-            socket.on('chatHistory', (data) => {
-                displayChatHistory(data.messages);
+            socket.on('groupRouteUpdate', (data) => {
+                handleGroupRouteUpdate(data);
+            });
+
+            socket.on('routeWaypointAdded', (data) => {
+                if (activeGroupRoute && activeGroupRoute.id === data.routeId) {
+                    addWaypointToActiveRoute(data.waypoint);
+                }
             });
         }
 
@@ -1154,310 +896,32 @@
             
             // Обработчик кликов по карте
             map.on('click', function(e) {
-                closeFABMenu();
-                
                 if (isMarkerMode) {
                     pendingMarkerCoords = [e.latlng.lat, e.latlng.lng];
                     document.getElementById('marker-modal').style.display = 'block';
                     isMarkerMode = false;
                     showNotification('Метка', 'Заполните информацию о метке');
-                } else if (isMeetupMode) {
-                    const coordinates = [e.latlng.lat, e.latlng.lng];
-                    const description = prompt('Описание точки сбора:') || 'Точка сбора';
-                    
-                    socket.emit('setMeetupPoint', {
-                        coordinates: coordinates,
-                        description: description
-                    });
-                    
-                    isMeetupMode = false;
-                    showNotification('Точка сбора', 'Точка сбора установлена!', 'success');
+                } else if (activeGroupRoute) {
+                    // Добавление точки к активному групповому маршруту
+                    addWaypointToGroupRoute(e.latlng);
                 }
             });
-
-            // Оптимизация для мобильных
-            if (isMobile) {
-                map.attributionControl.setPrefix('');
-                
-                // Увеличиваем элементы управления
-                setTimeout(() => {
-                    const zoomControl = document.querySelector('.leaflet-control-zoom');
-                    if (zoomControl) {
-                        zoomControl.style.transform = 'scale(1.2)';
-                    }
-                }, 100);
-            }
         }
 
-        // Функции для работы с метками
-        function enableMarkerMode() {
-            if (!currentUser.position) {
-                showNotification('Ошибка', 'Включите GPS для добавления меток!', 'error');
-                return;
-            }
-            
-            isMarkerMode = true;
-            closeFABMenu();
-            showNotification('Режим меток', 'Коснитесь карты для добавления метки');
-        }
-
-        function createMarker() {
-            const title = document.getElementById('marker-title').value.trim();
-            const description = document.getElementById('marker-description').value.trim();
-            const eventDate = document.getElementById('marker-event-date').value;
-            const category = document.getElementById('marker-category').value;
-            
-            if (!title) {
-                showNotification('Ошибка', 'Введите название метки!', 'error');
-                return;
-            }
-            
-            if (!pendingMarkerCoords) {
-                showNotification('Ошибка', 'Координаты не выбраны!', 'error');
-                return;
-            }
-            
-            const markerData = {
-                coordinates: pendingMarkerCoords,
-                title: title,
-                description: description,
-                eventDate: eventDate,
-                category: category
-            };
-            
-            socket.emit('createMarker', markerData);
-            closeModal('marker-modal');
-        }
-
-        function editMarker(markerId) {
-            const marker = customMarkers.get(markerId);
-            if (!marker) return;
-            
-            currentEditingMarkerId = markerId;
-            document.getElementById('edit-marker-title').value = marker.data.title;
-            document.getElementById('edit-marker-description').value = marker.data.description || '';
-            document.getElementById('edit-marker-event-date').value = marker.data.eventDate || '';
-            document.getElementById('edit-marker-category').value = marker.data.category;
-            document.getElementById('edit-marker-modal').style.display = 'block';
-        }
-
-        function saveMarkerEdit() {
-            const title = document.getElementById('edit-marker-title').value.trim();
-            const description = document.getElementById('edit-marker-description').value.trim();
-            const eventDate = document.getElementById('edit-marker-event-date').value;
-            const category = document.getElementById('edit-marker-category').value;
-            
-            if (!title) {
-                showNotification('Ошибка', 'Введите название метки!', 'error');
-                return;
-            }
-            
-            socket.emit('editMarker', {
-                markerId: currentEditingMarkerId,
-                title: title,
-                description: description,
-                eventDate: eventDate,
-                category: category
-            });
-            
-            closeModal('edit-marker-modal');
-        }
-
-        function deleteCurrentMarker() {
-            if (confirm('Удалить эту метку?')) {
-                socket.emit('deleteMarker', {
-                    markerId: currentEditingMarkerId
-                });
-                closeModal('edit-marker-modal');
-            }
-        }
-
-        function loadCustomMarkers(markers) {
-            markerCluster.clearLayers();
-            customMarkers.clear();
-            
-            markers.forEach(markerData => {
-                createCustomMarkerOnMap(markerData);
-            });
-        }
-
-        function handleMarkerUpdate(data) {
-            if (data.action === 'add') {
-                createCustomMarkerOnMap(data.marker);
-            } else if (data.action === 'edit') {
-                updateCustomMarkerOnMap(data.marker);
-            } else if (data.action === 'delete') {
-                removeCustomMarkerFromMap(data.markerId);
-            }
-        }
-
-        function createCustomMarkerOnMap(markerData) {
-            const category = markerCategories[markerData.category] || markerCategories.note;
-            
-            const markerIcon = L.divIcon({
-                html: `<div class="custom-marker ${markerData.category}-marker">${category.icon}</div>`,
-                className: '',
-                iconSize: [32, 32],
-                iconAnchor: [16, 32]
-            });
-            
-            const marker = L.marker(markerData.coordinates, {
-                icon: markerIcon
-            });
-            
-            const popupContent = `
-                <div style="min-width: 180px;">
-                    <h4 style="margin: 0 0 8px 0; font-size: 14px;">${markerData.title}</h4>
-                    ${markerData.description ? '<p style="margin: 4px 0; font-size: 12px;">' + markerData.description + '</p>' : ''}
-                    ${markerData.eventDate ? '<p style="margin: 4px 0; font-size: 11px;"><strong>Дата:</strong> ' + markerData.eventDate + '</p>' : ''}
-                    <p style="margin: 4px 0; font-size: 11px;"><strong>Тип:</strong> ${category.icon} ${markerData.category}</p>
-                    <p style="margin: 4px 0 8px 0; font-size: 10px; color: #666;">Создано: ${markerData.createdBy}</p>
-                    ${markerData.createdBy === socket.id ? 
-                        '<button onclick="editMarker(\'' + markerData.id + '\')" style="width: 100%; margin-top: 4px;">Редактировать</button>' : 
-                        ''
-                    }
-                </div>
-            `;
-            
-            marker.bindPopup(popupContent, {
-                maxWidth: 250,
-                className: 'custom-popup'
-            });
-            
-            markerCluster.addLayer(marker);
-            
-            customMarkers.set(markerData.id, {
-                marker: marker,
-                data: markerData
-            });
-        }
-
-        function updateCustomMarkerOnMap(markerData) {
-            const existingMarker = customMarkers.get(markerData.id);
-            if (existingMarker) {
-                markerCluster.removeLayer(existingMarker.marker);
-            }
-            createCustomMarkerOnMap(markerData);
-        }
-
-        function removeCustomMarkerFromMap(markerId) {
-            const existingMarker = customMarkers.get(markerId);
-            if (existingMarker) {
-                markerCluster.removeLayer(existingMarker.marker);
-                customMarkers.delete(markerId);
-            }
-        }
-
-        // Функции точки сбора
-        function enableMeetupMode() {
-            if (!currentUser.position) {
-                showNotification('Ошибка', 'Включите GPS для установки точки сбора!', 'error');
-                return;
-            }
-            
-            isMeetupMode = true;
-            closeFABMenu();
-            showNotification('Точка сбора', 'Коснитесь карты для установки точки сбора');
-        }
-
-        function updateMeetupPoint(meetupData) {
-            if (meetupMarker) {
-                map.removeLayer(meetupMarker);
-            }
-            
-            const meetupIcon = L.divIcon({
-                html: `<div style="
-                    background: #f39c12; 
-                    color: white; 
-                    padding: 6px; 
-                    border-radius: 50%; 
-                    width: 44px; 
-                    height: 44px; 
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.6); 
-                    border: 3px solid white;
-                    font-weight: bold;
-                    font-size: 20px;
-                ">🎯</div>`,
-                className: '',
-                iconSize: [44, 44],
-                iconAnchor: [22, 44]
-            });
-            
-            meetupMarker = L.marker(meetupData.coordinates, {
-                icon: meetupIcon
-            }).addTo(map)
-            .bindPopup(`<b>Точка сбора</b><br>Установлена: ${meetupData.setBy}<br>${meetupData.description}`);
-            
-            document.getElementById('meetup-info').style.display = 'block';
-            document.getElementById('meetup-details').innerHTML = `
-                ${meetupData.setBy}<br>
-                ${new Date(meetupData.timestamp).toLocaleTimeString()}
-            `;
-            
-            if (currentUser.position) {
-                calculateRouteToMeetup(meetupData.coordinates);
-            }
-        }
-
-        function updateTravelTimeDisplay(data) {
-            document.getElementById('travel-time-info').style.display = 'block';
-            document.getElementById('travel-time-text').innerHTML = `
-                ${data.distance.toFixed(1)} км<br>
-                ${data.time} мин<br>
-                ${data.transportType}
-            `;
-        }
-
-        function calculateRouteToMeetup(targetCoords) {
-            if (routingControl) {
-                map.removeControl(routingControl);
-            }
-
-            let profile = 'driving';
-            if (currentUser.status === '🚲 Вело') {
-                profile = 'cycling';
-            } else if (currentUser.status === '🚶 Пешкодрали') {
-                profile = 'walking';
-            }
-
-            routingControl = L.Routing.control({
-                waypoints: [
-                    L.latLng(currentUser.position[0], currentUser.position[1]),
-                    L.latLng(targetCoords[0], targetCoords[1])
-                ],
-                routeWhileDragging: false,
-                show: false,
-                addWaypoints: false,
-                draggableWaypoints: false,
-                fitSelectedRoutes: true,
-                router: L.Routing.osrmv1({
-                    serviceUrl: 'https://router.project-osrm.org/route/v1',
-                    profile: profile
-                })
-            }).addTo(map);
-        }
-
-        // Функции для работы с пользователями
+        // Функции управления пользователями
         function updateUserMarkers(users) {
-            // Удаляем старые маркеры
             userMarkers.forEach((marker, userId) => {
                 if (!users.find(u => u.id === userId)) {
                     map.removeLayer(marker);
                     userMarkers.delete(userId);
                     allUsers.delete(userId);
-                    activeUsers.delete(userId);
                 }
             });
 
-            // Добавляем/обновляем маркеры пользователей
             users.forEach(user => {
                 if (user.id === currentUser.id || !user.position) return;
 
                 allUsers.set(user.id, user);
-                if (user.position) activeUsers.add(user.id);
 
                 const color = statusColors[user.status] || '#95a5a6';
                 const emoji = user.status.split(' ')[0];
@@ -1485,19 +949,19 @@
                     color: white; 
                     padding: 4px; 
                     border-radius: 50%; 
-                    width: 36px; 
-                    height: 36px; 
+                    width: 32px; 
+                    height: 32px; 
                     display: flex;
                     align-items: center;
                     justify-content: center;
                     box-shadow: 0 3px 8px rgba(0,0,0,0.6); 
                     border: 2px solid #2c3e50;
                     font-weight: bold;
-                    font-size: 16px;
+                    font-size: 14px;
                 ">${emoji}</div>`,
                 className: '',
-                iconSize: [36, 36],
-                iconAnchor: [18, 36]
+                iconSize: [32, 32],
+                iconAnchor: [16, 32]
             });
         }
 
@@ -1507,82 +971,52 @@
                     <b style="font-size: 14px;">${user.name}</b><br>
                     <span style="font-size: 12px;">${user.status}</span><br>
                     <div style="margin-top: 8px;">
-                        <button onclick="handleUserAction('chat','${user.id}')" style="margin: 2px; width: calc(50% - 2px);">💬 Чат</button>
-                        <button onclick="handleUserAction('route',[${user.position}])" style="margin: 2px; width: calc(50% - 2px);">🗺️ Путь</button>
+                        <button onclick="openPrivateChat('${user.id}', '${user.name}')" style="margin: 2px; width: calc(50% - 2px);">💬 Чат</button>
+                        <button onclick="buildRouteToUser([${user.position}])" style="margin: 2px; width: calc(50% - 2px);">🗺️ Путь</button>
                     </div>
                 </div>
             `;
         }
 
-        function handleUserAction(action, data) {
-            if (action === 'chat') {
-                openChatModal(data);
-            } else if (action === 'route') {
-                buildRouteToUser(JSON.parse(`[${data}]`));
-            }
-        }
-
-        function buildRouteToUser(targetCoords) {
-            if (!currentUser.position) {
-                showNotification('Ошибка', 'Включите геолокацию для построения маршрута!', 'error');
-                return;
-            }
-
-            if (routingControl) {
-                map.removeControl(routingControl);
-            }
-
-            let profile = 'driving';
-            if (currentUser.status === '🚲 Вело') {
-                profile = 'cycling';
-            } else if (currentUser.status === '🚶 Пешкодрали') {
-                profile = 'walking';
-            }
-
-            routingControl = L.Routing.control({
-                waypoints: [
-                    L.latLng(currentUser.position[0], currentUser.position[1]),
-                    L.latLng(targetCoords[0], targetCoords[1])
-                ],
-                routeWhileDragging: false,
-                show: false,
-                addWaypoints: false,
-                draggableWaypoints: false,
-                fitSelectedRoutes: true,
-                router: L.Routing.osrmv1({
-                    serviceUrl: 'https://router.project-osrm.org/route/v1',
-                    profile: profile
-                })
-            }).addTo(map);
-
-            showNotification('Маршрут', 'Маршрут построен!', 'success');
-        }
-
-        // Функции чата
-        function getChatKey(userId1, userId2) {
-            return [userId1, userId2].sort().join('-');
-        }
-
-        function openChatModal(userId) {
-            const user = Array.from(allUsers.values()).find(u => u.id === userId);
-            if (!user) return;
-
+        // Функции приватного чата (ИСПРАВЛЕНО)
+        function openPrivateChat(userId, userName) {
             currentChatUserId = userId;
-            document.getElementById('chat-with-name').textContent = user.name;
-            document.getElementById('private-chat-messages').innerHTML = '';
-            document.getElementById('chat-modal').style.display = 'block';
+            document.getElementById('chat-user-name').textContent = userName;
+            document.getElementById('private-messages').innerHTML = '';
+            document.getElementById('private-chat').style.display = 'flex';
             
-            loadChatHistory();
+            // Загружаем историю чата
+            socket.emit('getChatHistory', { withUser: userId });
         }
 
-        function loadChatHistory() {
-            if (currentChatUserId) {
-                socket.emit('getChatHistory', { withUser: currentChatUserId });
+        function closePrivateChat() {
+            document.getElementById('private-chat').style.display = 'none';
+            currentChatUserId = null;
+        }
+
+        function sendPrivateMessage() {
+            const input = document.getElementById('private-message-input');
+            const message = input.value.trim();
+            
+            if (message && currentChatUserId) {
+                const messageData = {
+                    text: message,
+                    timestamp: new Date().toISOString()
+                };
+                
+                displayPrivateMessage(messageData, true);
+                
+                socket.emit('privateMessage', {
+                    to: currentChatUserId,
+                    text: message
+                });
+                
+                input.value = '';
             }
         }
 
         function displayPrivateMessage(messageData, fromMe) {
-            const messages = document.getElementById('private-chat-messages');
+            const messages = document.getElementById('private-messages');
             const messageDiv = document.createElement('div');
             messageDiv.className = `private-message ${fromMe ? 'from-me' : 'from-other'}`;
             
@@ -1597,49 +1031,265 @@
             messages.scrollTop = messages.scrollHeight;
         }
 
-        function displayChatHistory(messages) {
-            const chatContainer = document.getElementById('private-chat-messages');
-            chatContainer.innerHTML = '';
-            
-            messages.forEach(message => {
-                displayPrivateMessage(message, message.from === socket.id);
-            });
-        }
-
-        function sendPrivateMessage() {
-            const input = document.getElementById('private-message-input');
-            const message = input.value.trim();
-            
-            if (message && currentChatUserId) {
-                const messageData = {
-                    id: Date.now() + Math.random(),
-                    text: message,
-                    timestamp: new Date().toISOString()
-                };
-                
-                const chatKey = getChatKey(socket.id, currentChatUserId);
-                if (!chatHistory.has(chatKey)) {
-                    chatHistory.set(chatKey, []);
-                }
-                chatHistory.get(chatKey).push({
-                    ...messageData,
-                    fromMe: true
-                });
-                
-                displayPrivateMessage(messageData, true);
-                
-                socket.emit('privateMessage', {
-                    to: currentChatUserId,
-                    text: message
-                });
-                
-                input.value = '';
-            }
-        }
-
         function handlePrivateEnterKey(event) {
             if (event.key === 'Enter') {
                 sendPrivateMessage();
+            }
+        }
+
+        // Функции меток (ИСПРАВЛЕНО)
+        function enableMarkerMode() {
+            if (!currentUser.position) {
+                showNotification('Ошибка', 'Включите GPS для добавления меток!', 'error');
+                return;
+            }
+            
+            isMarkerMode = true;
+            showNotification('Режим меток', 'Коснитесь карты для добавления метки');
+        }
+
+        function createMarker() {
+            const title = document.getElementById('marker-title').value.trim();
+            const description = document.getElementById('marker-description').value.trim();
+            const category = document.getElementById('marker-category').value;
+            
+            if (!title) {
+                showNotification('Ошибка', 'Введите название метки!', 'error');
+                return;
+            }
+            
+            if (!pendingMarkerCoords) {
+                showNotification('Ошибка', 'Координаты не выбраны!', 'error');
+                return;
+            }
+            
+            const markerData = {
+                coordinates: pendingMarkerCoords,
+                title: title,
+                description: description,
+                category: category,
+                createdBy: currentUser.name
+            };
+            
+            socket.emit('createMarker', markerData);
+            closeModal('marker-modal');
+            
+            // Очищаем поля формы
+            document.getElementById('marker-title').value = '';
+            document.getElementById('marker-description').value = '';
+            document.getElementById('marker-category').value = 'note';
+            pendingMarkerCoords = null;
+        }
+
+        function createCustomMarkerOnMap(markerData) {
+            const category = markerCategories[markerData.category] || markerCategories.note;
+            
+            const markerIcon = L.divIcon({
+                html: `<div class="custom-marker ${markerData.category}-marker" style="
+                    background: ${category.color}; 
+                    color: white; 
+                    width: 28px; 
+                    height: 28px; 
+                    border-radius: 50%; 
+                    display: flex; 
+                    align-items: center; 
+                    justify-content: center; 
+                    font-size: 14px; 
+                    border: 2px solid white;
+                    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+                ">${category.icon}</div>`,
+                className: '',
+                iconSize: [28, 28],
+                iconAnchor: [14, 28]
+            });
+            
+            const marker = L.marker(markerData.coordinates, {
+                icon: markerIcon
+            });
+            
+            const popupContent = `
+                <div style="min-width: 180px;">
+                    <h4 style="margin: 0 0 8px 0; font-size: 14px;">${markerData.title}</h4>
+                    ${markerData.description ? '<p style="margin: 4px 0; font-size: 12px;">' + markerData.description + '</p>' : ''}
+                    <p style="margin: 4px 0; font-size: 11px;"><strong>Тип:</strong> ${category.icon} ${markerData.category}</p>
+                    <p style="margin: 4px 0 8px 0; font-size: 10px; color: #666;">Создано: ${markerData.createdBy}</p>
+                </div>
+            `;
+            
+            marker.bindPopup(popupContent, {
+                maxWidth: 250,
+                className: 'custom-popup'
+            });
+            
+            markerCluster.addLayer(marker);
+            customMarkers.set(markerData.id, marker);
+        }
+
+        // Функции групповых маршрутов
+        function toggleGroupRoutes() {
+            const panel = document.getElementById('group-routes-panel');
+            if (panel.style.display === 'block') {
+                panel.style.display = 'none';
+            } else {
+                panel.style.display = 'block';
+                loadGroupRoutes();
+            }
+        }
+
+        function createGroupRoute() {
+            document.getElementById('group-route-modal').style.display = 'block';
+        }
+
+        function saveGroupRoute() {
+            const name = document.getElementById('route-name').value.trim();
+            const description = document.getElementById('route-description').value.trim();
+            const type = document.getElementById('route-type').value;
+            
+            if (!name) {
+                showNotification('Ошибка', 'Введите название маршрута!', 'error');
+                return;
+            }
+            
+            const routeData = {
+                name: name,
+                description: description,
+                type: type,
+                creator: currentUser.name,
+                waypoints: []
+            };
+            
+            socket.emit('createGroupRoute', routeData);
+            closeModal('group-route-modal');
+            
+            // Очищаем поля формы
+            document.getElementById('route-name').value = '';
+            document.getElementById('route-description').value = '';
+            document.getElementById('route-type').value = 'public';
+        }
+
+        function loadGroupRoutes() {
+            socket.emit('getGroupRoutes');
+        }
+
+        function updateGroupRoutesList(routes) {
+            const routesList = document.getElementById('routes-list');
+            routesList.innerHTML = '';
+            
+            routes.forEach(route => {
+                const routeItem = document.createElement('div');
+                routeItem.className = 'route-item';
+                routeItem.innerHTML = `
+                    <div style="font-weight: bold;">${route.name}</div>
+                    <div style="font-size: 11px; opacity: 0.8;">${route.description}</div>
+                    <div style="font-size: 10px; margin-top: 4px;">Создатель: ${route.creator}</div>
+                `;
+                
+                routeItem.onclick = () => selectGroupRoute(route);
+                routesList.appendChild(routeItem);
+            });
+        }
+
+        function selectGroupRoute(route) {
+            if (activeGroupRoute) {
+                deactivateGroupRoute();
+            }
+            
+            activeGroupRoute = route;
+            showNotification('Маршрут', `Активен маршрут: ${route.name}`, 'success');
+            
+            document.getElementById('route-info').style.display = 'block';
+            document.getElementById('route-details').innerHTML = `
+                ${route.name}<br>
+                Участников: ${route.participants ? route.participants.length : 0}
+            `;
+            
+            // Отображаем маршрут на карте
+            displayGroupRoute(route);
+            
+            // Присоединяемся к маршруту
+            socket.emit('joinGroupRoute', { routeId: route.id });
+            
+            // Закрываем панель
+            document.getElementById('group-routes-panel').style.display = 'none';
+        }
+
+        function deactivateGroupRoute() {
+            if (activeGroupRoute) {
+                socket.emit('leaveGroupRoute', { routeId: activeGroupRoute.id });
+                
+                if (routingControl) {
+                    map.removeControl(routingControl);
+                    routingControl = null;
+                }
+                
+                document.getElementById('route-info').style.display = 'none';
+                activeGroupRoute = null;
+            }
+        }
+
+        function displayGroupRoute(route) {
+            if (routingControl) {
+                map.removeControl(routingControl);
+            }
+            
+            if (route.waypoints && route.waypoints.length >= 2) {
+                const waypoints = route.waypoints.map(wp => L.latLng(wp.lat, wp.lng));
+                
+                routingControl = L.Routing.control({
+                    waypoints: waypoints,
+                    routeWhileDragging: false,
+                    show: false,
+                    addWaypoints: false,
+                    draggableWaypoints: false,
+                    fitSelectedRoutes: true,
+                    router: L.Routing.osrmv1({
+                        serviceUrl: 'https://router.project-osrm.org/route/v1',
+                        profile: 'driving'
+                    }),
+                    lineOptions: {
+                        styles: [{ color: '#9b59b6', weight: 4, opacity: 0.8 }]
+                    }
+                }).addTo(map);
+            }
+        }
+
+        function addWaypointToGroupRoute(latlng) {
+            if (!activeGroupRoute) {
+                showNotification('Ошибка', 'Выберите активный маршрут!', 'error');
+                return;
+            }
+            
+            const waypoint = {
+                lat: latlng.lat,
+                lng: latlng.lng,
+                addedBy: currentUser.name
+            };
+            
+            socket.emit('addWaypointToRoute', {
+                routeId: activeGroupRoute.id,
+                waypoint: waypoint
+            });
+        }
+
+        function addWaypointToActiveRoute(waypoint) {
+            if (!activeGroupRoute) return;
+            
+            activeGroupRoute.waypoints = activeGroupRoute.waypoints || [];
+            activeGroupRoute.waypoints.push(waypoint);
+            
+            // Перестраиваем маршрут
+            displayGroupRoute(activeGroupRoute);
+            
+            showNotification('Маршрут', `Добавлена точка от ${waypoint.addedBy}`, 'success');
+        }
+
+        function handleGroupRouteUpdate(data) {
+            if (data.action === 'created') {
+                showNotification('Маршрут', `Создан новый маршрут: ${data.route.name}`, 'success');
+                loadGroupRoutes();
+            } else if (data.action === 'updated' && activeGroupRoute && activeGroupRoute.id === data.route.id) {
+                activeGroupRoute = data.route;
+                displayGroupRoute(activeGroupRoute);
             }
         }
 
@@ -1674,8 +1324,6 @@
                 return;
             }
 
-            closeFABMenu();
-
             navigator.geolocation.getCurrentPosition(
                 (position) => {
                     const coords = [position.coords.latitude, position.coords.longitude];
@@ -1696,7 +1344,6 @@
                     showNotification('GPS', 'Местоположение определено!', 'success');
                     isLocationTracking = true;
 
-                    // Отслеживание позиции
                     watchId = navigator.geolocation.watchPosition(
                         (pos) => {
                             const newCoords = [pos.coords.latitude, pos.coords.longitude];
@@ -1712,7 +1359,6 @@
                         },
                         (error) => {
                             console.warn('Ошибка отслеживания:', error);
-                            showNotification('GPS', 'Ошибка отслеживания позиции', 'error');
                         },
                         {
                             enableHighAccuracy: true,
@@ -1766,15 +1412,6 @@
             
             addSystemMessage('GPS выключен');
             showNotification('GPS', 'Отслеживание отключено', 'info');
-            
-            // Скрываем информацию о времени в пути
-            document.getElementById('travel-time-info').style.display = 'none';
-            
-            // Удаляем маршрут
-            if (routingControl) {
-                map.removeControl(routingControl);
-                routingControl = null;
-            }
         }
 
         function updateMyMarker(coords) {
@@ -1787,15 +1424,15 @@
                     color: white; 
                     padding: 4px; 
                     border-radius: 50%; 
-                    width: 40px; 
-                    height: 40px; 
+                    width: 36px; 
+                    height: 36px; 
                     display: flex;
                     align-items: center;
                     justify-content: center;
                     box-shadow: 0 4px 12px rgba(0,0,0,0.7); 
                     border: 3px solid #ecf0f1;
                     font-weight: bold;
-                    font-size: 18px;
+                    font-size: 16px;
                     animation: pulse 2s infinite;
                 ">${emoji}</div>
                 <style>
@@ -1806,8 +1443,8 @@
                 }
                 </style>`,
                 className: '',
-                iconSize: [40, 40],
-                iconAnchor: [20, 40]
+                iconSize: [36, 36],
+                iconAnchor: [18, 36]
             });
             
             if (userMarker) {
@@ -1822,7 +1459,56 @@
             }
         }
 
-        // Функции группового чата
+        function buildRouteToUser(targetCoords) {
+            if (!currentUser.position) {
+                showNotification('Ошибка', 'Включите геолокацию для построения маршрута!', 'error');
+                return;
+            }
+
+            if (routingControl) {
+                map.removeControl(routingControl);
+            }
+
+            let profile = 'driving';
+            if (currentUser.status === '🚲 Вело') {
+                profile = 'cycling';
+            } else if (currentUser.status === '🚶 Пешкодрали') {
+                profile = 'walking';
+            }
+
+            routingControl = L.Routing.control({
+                waypoints: [
+                    L.latLng(currentUser.position[0], currentUser.position[1]),
+                    L.latLng(targetCoords[0], targetCoords[1])
+                ],
+                routeWhileDragging: false,
+                show: false,
+                addWaypoints: false,
+                draggableWaypoints: false,
+                fitSelectedRoutes: true,
+                router: L.Routing.osrmv1({
+                    serviceUrl: 'https://router.project-osrm.org/route/v1',
+                    profile: profile
+                })
+            }).addTo(map);
+
+            showNotification('Маршрут', 'Маршрут построен!', 'success');
+            addSystemMessage('🗺️ Маршрут построен к пользователю!');
+        }
+
+        // Функции чата
+        function toggleChatSection() {
+            const chatSection = document.getElementById('chat-section');
+            
+            if (isChatMinimized) {
+                chatSection.classList.remove('minimized');
+                isChatMinimized = false;
+            } else {
+                chatSection.classList.add('minimized');
+                isChatMinimized = true;
+            }
+        }
+
         function sendMessage() {
             const input = document.getElementById('message-input');
             const message = input.value.trim();
@@ -1860,7 +1546,6 @@
             chatMessages.appendChild(messageDiv);
             chatMessages.scrollTop = chatMessages.scrollHeight;
             
-            // Ограничиваем количество сообщений для производительности
             if (chatMessages.children.length > 50) {
                 chatMessages.removeChild(chatMessages.firstChild);
             }
@@ -1875,7 +1560,6 @@
             chatMessages.appendChild(messageDiv);
             chatMessages.scrollTop = chatMessages.scrollHeight;
             
-            // Ограничиваем количество сообщений
             if (chatMessages.children.length > 50) {
                 chatMessages.removeChild(chatMessages.firstChild);
             }
@@ -1892,9 +1576,14 @@
             }
         }
 
+        // Функции модальных окон
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
         // Закрытие модальных окон при клике вне
         document.addEventListener('click', (e) => {
-            const modals = ['chat-modal', 'marker-modal', 'edit-marker-modal'];
+            const modals = ['marker-modal', 'group-route-modal'];
             
             modals.forEach(modalId => {
                 const modal = document.getElementById(modalId);

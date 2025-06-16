@@ -1,111 +1,126 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Продвинутый Чат</title>
-    <style>
-        /* Стили, как в предыдущей версии (убраны для краткости) */
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Чат с картой</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha512-somehash" crossorigin=""/>
+  <!-- Routing Machine CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css"/>
+
+  <style>
+    html, body { margin:0; padding:0; height:100%; font-family:'Segoe UI',sans-serif; }
+    .chat-container { display:flex; height:100vh; }
+    .sidebar { width:300px; background:#f8f9fa; border-right:1px solid #e9ecef; display:flex; flex-direction:column; }
+    #map { width:100%; height:300px; }
+    .contacts-list { flex:1; overflow-y:auto; padding:0; margin:0; list-style:none; }
+    .chat-area { flex:1; display:flex; flex-direction:column; }
+    .chat-header { padding:15px; background:#fff; border-bottom:1px solid #e9ecef; }
+    .messages-container { flex:1; padding:15px; overflow-y:auto; background:#f8f9fa; }
+    .input-container { display:none; padding:15px; background:#fff; border-top:1px solid #e9ecef; gap:10px; }
+    .message-input { flex:1; padding:10px; border:1px solid #dee2e6; border-radius:20px; resize:none; outline:none; }
+    .send-btn { padding:0 15px; border:none; background:#007bff; color:#fff; border-radius:20px; cursor:pointer; }
+    .message { margin-bottom:10px; }
+  </style>
 </head>
+
 <body>
-    <div class="chat-container">
-        <div class="sidebar" id="sidebar">
-            <!-- Боковая панель -->
-            <div class="user-profile">
-                <div class="user-avatar" id="currentUserAvatar">Я</div>
-                <div id="currentUserName">Текущий пользователь</div>
-                <div id="userStatus" style="font-size:12px;opacity:0.8;">Онлайн</div>
-            </div>
-            <div class="search-container">
-                <input type="text" class="search-input" placeholder="Поиск контактов…" id="contactSearch">
-            </div>
-            <div class="contacts-list" id="contactsList">
-                <div class="contact-item" data-contact="alice">
-                    <div class="contact-avatar">А</div>
-                    <div class="contact-info">
-                        <div class="contact-name">Алиса</div>
-                        <div class="contact-status">Печатает…</div>
-                    </div>
-                    <div class="status-indicator status-online"></div>
-                </div>
-                <!-- Другие контакты -->
-            </div>
-        </div>
-        <div class="chat-area">
-            <div class="chat-header">
-                <span class="chat-title" id="chatTitle">Подключение…</span>
-                <div class="chat-actions">
-                    <button class="action-btn" onclick="toggleTheme()">🌙</button>
-                    <button class="action-btn" onclick="clearChat()">🗑️</button>
-                    <button class="action-btn" onclick="exportChat()">📤</button>
-                </div>
-            </div>
-            <div class="messages-container" id="messagesContainer">
-                <!-- До инициализации показываем заглушку -->
-                <div class="no-chat-selected" id="noChatSelected">Подключение…</div>
-            </div>
-            <div class="typing-indicator" id="typingIndicator" style="display:none;">Собеседник печатает…</div>
-            <div class="input-container" id="inputContainer" style="display:none;">
-                <!-- Поля для ввода сообщения -->
-            </div>
-            <div class="emoji-picker" id="emojiPicker"><div class="emoji-grid" id="emojiGrid"></div></div>
-        </div>
+  <div class="chat-container">
+    <div class="sidebar">
+      <div id="map"></div>
+      <ul class="contacts-list" id="contactsList"></ul>
     </div>
 
-    <!-- Подключаем скрипт с defer -->
-    <script defer>
-        let currentContact = null, messages = {}, isRecording = false, mediaRecorder = null;
-        document.addEventListener('DOMContentLoaded', initializeApp);
+    <div class="chat-area">
+      <div class="chat-header">
+        <h3 id="chatTitle">Выберите пользователя на карте</h3>
+      </div>
+      <div class="messages-container" id="messagesContainer"></div>
+      <div class="input-container" id="inputContainer">
+        <textarea id="messageInput" class="message-input" rows="2" placeholder="Введите сообщение"></textarea>
+        <button id="sendBtn" class="send-btn">Отправить</button>
+      </div>
+    </div>
+  </div>
 
-        function initializeApp() {
-            // Убираем сообщение «Подключение…»
-            document.getElementById('chatTitle').textContent = 'Выберите контакт для начала общения';
-            document.getElementById('noChatSelected').textContent = 'Выберите контакт для начала общения';
-            loadEmojiPicker();
-            setupEventListeners();
-            loadMessagesFromStorage();
-            setupVoiceRecording();
-        }
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha512-somehash" crossorigin=""></script>
+  <!-- Routing Machine JS -->
+  <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
 
-        function setupEventListeners() {
-            document.getElementById('contactSearch').addEventListener('input', e => filterContacts(e.target.value));
-            document.addEventListener('click', e => {
-                if (e.target.closest('.contact-item')) {
-                    selectContact(e.target.closest('.contact-item').dataset.contact);
-                }
-                if (!e.target.closest('.emoji-picker') && !e.target.closest('[onclick="toggleEmojiPicker()"]')) {
-                    document.getElementById('emojiPicker').classList.remove('show');
-                }
-            });
-            document.getElementById('messageInput')?.addEventListener('keydown', e => {
-                if (e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();}
-            });
-            document.getElementById('messageInput')?.addEventListener('input', showTypingIndicator);
-            window.addEventListener('resize', () => {
-                if (window.innerWidth>768) document.getElementById('sidebar').classList.remove('show');
-            });
-        }
+  <script>
+    // Инициализация карты
+    const map = L.map('map').setView([55.751244,37.618423],10); // Москва по умолчанию [1]
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+      attribution:'© OpenStreetMap contributors'
+    }).addTo(map);
 
-        function selectContact(contactId) {
-            document.querySelectorAll('.contact-item').forEach(i=>i.classList.remove('active'));
-            document.querySelector(`[data-contact="${contactId}"]`).classList.add('active');
-            currentContact=contactId;
-            document.getElementById('chatTitle').textContent=getContactName(contactId);
-            document.getElementById('inputContainer').style.display='block';
-            document.getElementById('noChatSelected').style.display='none';
-            loadMessages(contactId);
-            if(window.innerWidth<=768) document.getElementById('sidebar').classList.remove('show');
-        }
+    // Пример пользователей с координатами
+    const users = [
+      { id:'alice', name:'Алиса', coords:[55.75,37.61] },
+      { id:'bob', name:'Борис', coords:[55.80,37.70] },
+      { id:'charlie', name:'Чарли', coords:[55.70,37.60] }
+    ];
 
-        /* Остальные функции: sendMessage, displayMessage, loadMessages, simulateReply,
-           loadEmojiPicker, toggleEmojiPicker, insertEmoji, setupVoiceRecording,
-           toggleVoiceRecording, showTypingIndicator, filterContacts,
-           clearChat, exportChat, toggleTheme, toggleSidebar,
-           showMessageContextMenu, replyToMessage, forwardMessage,
-           addReaction, deleteMessage, getContactName, formatTime,
-           scrollToBottom, saveMessagesToStorage, loadMessagesFromStorage */
-        // (См. полный код предыдущей версии)
-    </script>
+    const currentUser = { id:'me', coords:[55.76,37.64] };
+    const messages = {};
+
+    // Добавление маркеров
+    users.forEach(u => {
+      const marker = L.marker(u.coords).addTo(map).bindPopup(u.name);
+      marker.on('click', () => openPrivateChat(u));
+      // Добавляем в список контактов (альтернативный способ)
+      const li = document.createElement('li');
+      li.textContent = u.name;
+      li.onclick = () => openPrivateChat(u);
+      document.getElementById('contactsList').appendChild(li);
+    });
+
+    function openPrivateChat(user) {
+      // Удаляем предыдущий маршрут
+      if (window.routeCtrl) { map.removeControl(window.routeCtrl); }
+
+      // Обновляем заголовок и отображаем ввод
+      document.getElementById('chatTitle').textContent = `Чат с ${user.name}`;
+      document.getElementById('inputContainer').style.display = 'flex';
+      loadMessages(user.id);
+
+      // Строим маршрут
+      window.routeCtrl = L.Routing.control({
+        waypoints:[
+          L.latLng(currentUser.coords),
+          L.latLng(user.coords)
+        ],
+        lineOptions:{ styles:[{ color:'#007bff', weight:4 }] },
+        addWaypoints:false,
+        routeWhileDragging:false
+      }).addTo(map);
+    }
+
+    function loadMessages(contactId) {
+      const container = document.getElementById('messagesContainer');
+      container.innerHTML = '';
+      (messages[contactId]||[]).forEach(m => {
+        const div = document.createElement('div');
+        div.className = 'message';
+        div.textContent = `${m.sender==='me'?'Я':m.sender}: ${m.text}`;
+        container.appendChild(div);
+      });
+      container.scrollTop = container.scrollHeight;
+    }
+
+    document.getElementById('sendBtn').onclick = () => {
+      const txt = document.getElementById('messageInput').value.trim();
+      if (!txt) return;
+      const title = document.getElementById('chatTitle').textContent;
+      const contactId = title.split(' ')[2].toLowerCase();
+      if (!messages[contactId]) messages[contactId]=[];
+      messages[contactId].push({ sender:'me', text:txt });
+      loadMessages(contactId);
+      document.getElementById('messageInput').value='';
+    };
+  </script>
 </body>
 </html>

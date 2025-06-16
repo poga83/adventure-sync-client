@@ -125,3 +125,23 @@
       (messages[contactId] || []).forEach(m => {
         const div = document.createElement('div');
         div.className = 'message';
+        div.textContent = `${m.sender === 'me' ? 'Я' : m.sender}: ${m.text}`;
+        container.appendChild(div);
+      });
+      container.scrollTop = container.scrollHeight;
+    }
+
+    // Отправка нового сообщения
+    document.getElementById('sendBtn').onclick = () => {
+      const txt = document.getElementById('messageInput').value.trim();
+      if (!txt) return;
+      const title = document.getElementById('chatTitle').textContent;
+      const contactId = title.split(' ')[2].toLowerCase();
+      if (!messages[contactId]) messages[contactId] = [];
+      messages[contactId].push({ sender: 'me', text: txt });
+      loadMessages(contactId);
+      document.getElementById('messageInput').value = '';
+    };
+  </script>
+</body>
+</html>

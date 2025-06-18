@@ -1,0 +1,237 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body, html {
+    height: 100%;
+    font-family: Arial, sans-serif;
+}
+
+#app {
+    display: flex;
+    height: 100%;
+    position: relative;
+}
+
+#map {
+    flex: 1;
+    height: 100%;
+}
+
+#sidebar {
+    width: 300px;
+    height: 100%;
+    background-color: #f5f5f5;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-header {
+    margin-bottom: 20px;
+}
+
+.user-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+}
+
+.filter-section {
+    margin-bottom: 20px;
+}
+
+#activityFilter {
+    width: 100%;
+    height: 80px;
+    margin: 10px 0;
+}
+
+#applyFilterBtn {
+    width: 100%;
+    padding: 5px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+
+.chat-window {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    background-color: white;
+    border-radius: 5px;
+    overflow: hidden;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+#privateChat {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    width: 300px;
+    height: 400px;
+    z-index: 1000;
+}
+
+.chat-header {
+    background-color: #4CAF50;
+    color: white;
+    padding: 10px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+}
+
+.messages {
+    flex: 1;
+    padding: 10px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.message {
+    margin-bottom: 10px;
+    padding: 8px 12px;
+    border-radius: 15px;
+    max-width: 80%;
+    word-wrap: break-word;
+}
+
+.message.self {
+    align-self: flex-end;
+    background-color: #DCF8C6;
+}
+
+.message.other {
+    align-self: flex-start;
+    background-color: #E5E5EA;
+}
+
+.message .sender {
+    font-weight: bold;
+    margin-bottom: 3px;
+    font-size: 0.8em;
+}
+
+.message .time {
+    font-size: 0.7em;
+    color: #888;
+    text-align: right;
+    margin-top: 3px;
+}
+
+.chat-input {
+    display: flex;
+    padding: 10px;
+    border-top: 1px solid #eee;
+}
+
+.chat-input input {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 20px;
+    margin-right: 10px;
+}
+
+.chat-input button {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+#notifications {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+}
+
+.notification {
+    background-color: #4CAF50;
+    color: white;
+    padding: 10px 15px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    animation: fadeIn 0.3s, fadeOut 0.3s 2.7s;
+    opacity: 0;
+    animation-fill-mode: forwards;
+}
+
+.notification.error {
+    background-color: #f44336;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+.user-marker {
+    border-radius: 50%;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+}
+
+.user-available {
+    background-color: #4CAF50;
+}
+
+.user-hiking {
+    background-color: #FF9800;
+}
+
+.user-traveling {
+    background-color: #2196F3;
+}
+
+.user-busy {
+    background-color: #f44336;
+}
+
+.user-popup {
+    text-align: center;
+}
+
+.user-popup button {
+    margin-top: 5px;
+    padding: 3px 8px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    width: 100%;
+}
+
+.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}

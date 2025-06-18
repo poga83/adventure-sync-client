@@ -2,12 +2,11 @@ class ChatManager {
     constructor(app) {
         this.app = app;
         this.groupMessages = [];
-        this.privateMessages = new Map(); // Хранит сообщения по ID пользователя
-        this.chatPartner = null; // ID пользователя, с которым открыт приватный чат
+        this.privateMessages = new Map();
+        this.chatPartner = null;
     }
     
     initialize() {
-        // Инициализация обработчиков событий для чата
         document.getElementById('sendGroupBtn').addEventListener('click', () => {
             this.sendGroupMessage();
         });
@@ -28,7 +27,6 @@ class ChatManager {
             }
         });
         
-        // Восстановление сообщений из кэша
         this.restoreFromCache();
     }
     
@@ -38,12 +36,10 @@ class ChatManager {
             try {
                 const messages = JSON.parse(cachedMessages);
                 
-                // Восстанавливаем групповые сообщения
                 if (messages.group) {
                     this.setGroupChatHistory(messages.group);
                 }
                 
-                // Восстанавливаем приватные сообщения
                 if (messages.private) {
                     Object.keys(messages.private).forEach(userId => {
                         this.privateMessages.set(userId, messages.private[userId]);
@@ -56,7 +52,6 @@ class ChatManager {
     }
     
     updateCache() {
-        // Преобразуем Map в объект для сохранения
         const privateMessagesObj = {};
         this.privateMessages.forEach((messages, userId) => {
             privateMessagesObj[userId] = messages;
@@ -84,16 +79,10 @@ class ChatManager {
                 timestamp: new Date().toISOString()
             };
             
-            // Отправляем сообщение на сервер
             const sent = this.app.connectionManager.sendGroupMessage(messageObj);
-            
-            // Добавляем сообщение в локальный список
             this.addGroupMessage(messageObj);
-            
-            // Очищаем поле ввода
             input.value = '';
             
-            // Если сообщение не отправлено (оффлайн), показываем уведомление
             if (!sent) {
                 this.app.notificationManager.showNotification('Сообщение будет отправлено при восстановлении соединения', 'warning');
             }
@@ -117,16 +106,10 @@ class ChatManager {
                 timestamp: new Date().toISOString()
             };
             
-            // Отправляем сообщение на сервер
             const sent = this.app.connectionManager.sendPrivateMessage(this.chatPartner, messageObj);
-            
-            // Добавляем сообщение в локальный список
             this.addPrivateMessage(messageObj);
-            
-            // Очищаем поле ввода
             input.value = '';
             
-            // Если сообщение не отправлено (оффлайн), показываем уведомление
             if (!sent) {
                 this.app.notificationManager.showNotification('Сообщение будет отправлено при восстановлении соединения', 'warning');
             }
@@ -134,41 +117,30 @@ class ChatManager {
     }
     
     addGroupMessage(message) {
-        // Добавляем сообщение в массив
         this.groupMessages.push(message);
-        
-        // Обновляем отображение
         this.renderGroupMessages();
-        
-        // Обновляем кэш
         this.updateCache();
     }
     
     addPrivateMessage(message) {
-        // Определяем ID собеседника (отправителя или получателя)
         const userData = this.app.connectionManager.getUserData();
         const partnerId = message.senderId === userData.id ? message.recipientId : message.senderId;
         
-        // Проверяем, есть ли уже сообщения с этим пользователем
         if (!this.privateMessages.has(partnerId)) {
             this.privateMessages.set(partnerId, []);
         }
         
-        // Добавляем сообщение в массив
         this.privateMessages.get(partnerId).push(message);
         
-        // Если открыт чат с этим пользователем, обновляем отображение
         if (this.chatPartner === partnerId) {
             this.renderPrivateMessages();
         } else {
-            // Иначе показываем уведомление о новом сообщении
             const partner = this.app.markerManager.getUser(partnerId);
             if (partner) {
                 this.app.notificationManager.showNotification(`Новое сообщение от ${partner.name}`);
             }
         }
         
-        // Обновляем кэш
         this.updateCache();
     }
     
@@ -181,7 +153,6 @@ class ChatManager {
     setPrivateChatHistory(userId, messages) {
         this.privateMessages.set(userId, messages);
         
-        // Если открыт чат с этим пользователем, обновляем отображение
         if (this.chatPartner === userId) {
             this.renderPrivateMessages();
         }
@@ -194,10 +165,7 @@ class ChatManager {
         document.getElementById('chatUserName').textContent = userName;
         document.getElementById('privateChat').style.display = 'flex';
         
-        // Запрашиваем историю сообщений с сервера
         this.app.connectionManager.requestPrivateChatHistory(userId);
-        
-        // Отображаем имеющиеся сообщения
         this.renderPrivateMessages();
     }
     
@@ -210,7 +178,6 @@ class ChatManager {
             container.appendChild(messageElement);
         });
         
-        // Прокручиваем к последнему сообщению
         container.scrollTop = container.scrollHeight;
     }
     
@@ -227,7 +194,6 @@ class ChatManager {
             });
         }
         
-        // Прокручиваем к последнему сообщению
         container.scrollTop = container.scrollHeight;
     }
     

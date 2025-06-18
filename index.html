@@ -2,73 +2,123 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Adventure Sync</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
     <div id="app">
+        <!-- Гамбургер меню для мобильных -->
+        <button id="hamburger-btn" class="hamburger-btn">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+
+        <!-- Оверлей для закрытия меню -->
+        <div id="overlay" class="overlay"></div>
+
+        <!-- Карта - полноэкранная -->
         <div id="map"></div>
         
-        <div id="sidebar">
+        <!-- Боковое меню -->
+        <div id="sidebar" class="sidebar">
             <div class="sidebar-header">
                 <h2>Adventure Sync</h2>
+                <button id="close-sidebar" class="close-btn">×</button>
+            </div>
+            
+            <div class="user-section">
                 <div class="user-info">
+                    <i class="fas fa-user"></i>
                     <span id="userName">Гость</span>
-                    <select id="userStatus">
-                        <option value="available">Доступен</option>
-                        <option value="hiking">В походе</option>
-                        <option value="traveling">Путешествую</option>
-                        <option value="busy">Занят</option>
-                    </select>
                 </div>
+                <select id="userStatus" class="status-select">
+                    <option value="available">🟢 Доступен</option>
+                    <option value="hiking">🥾 В походе</option>
+                    <option value="traveling">🚗 Путешествую</option>
+                    <option value="busy">🔴 Занят</option>
+                </select>
             </div>
             
             <div class="filter-section">
                 <h3>Фильтр пользователей</h3>
-                <select id="activityFilter" multiple>
-                    <option value="all" selected>Все</option>
-                    <option value="available">Доступен</option>
-                    <option value="hiking">В походе</option>
-                    <option value="traveling">Путешествую</option>
-                    <option value="busy">Занят</option>
-                </select>
-                <button id="applyFilterBtn">Применить</button>
+                <div class="filter-buttons">
+                    <button class="filter-btn active" data-status="all">Все</button>
+                    <button class="filter-btn" data-status="available">🟢</button>
+                    <button class="filter-btn" data-status="hiking">🥾</button>
+                    <button class="filter-btn" data-status="traveling">🚗</button>
+                    <button class="filter-btn" data-status="busy">🔴</button>
+                </div>
             </div>
             
             <div id="groupChat" class="chat-window">
                 <div class="chat-header">
                     <h3>Общий чат</h3>
+                    <button id="toggle-chat" class="toggle-btn">
+                        <i class="fas fa-chevron-up"></i>
+                    </button>
                 </div>
                 <div id="groupMessages" class="messages"></div>
                 <div class="chat-input">
                     <input type="text" id="groupInput" placeholder="Сообщение...">
-                    <button id="sendGroupBtn">▶</button>
+                    <button id="sendGroupBtn"><i class="fas fa-paper-plane"></i></button>
                 </div>
             </div>
         </div>
         
-        <div id="privateChat" class="chat-window" style="display: none;">
-            <div class="chat-header">
-                <h3>Чат с <span id="chatUserName"></span></h3>
-                <button class="close-btn" onclick="document.getElementById('privateChat').style.display = 'none';">×</button>
-            </div>
-            <div id="privateMessages" class="messages"></div>
-            <div class="chat-input">
-                <input type="text" id="privateInput" placeholder="Сообщение...">
-                <button id="sendPrivateBtn">▶</button>
+        <!-- Приватный чат (модальное окно) -->
+        <div id="privateChat" class="private-chat-modal">
+            <div class="private-chat-content">
+                <div class="chat-header">
+                    <h3>Чат с <span id="chatUserName"></span></h3>
+                    <button id="closePrivateChat" class="close-btn">×</button>
+                </div>
+                <div id="privateMessages" class="messages"></div>
+                <div class="chat-input">
+                    <input type="text" id="privateInput" placeholder="Сообщение...">
+                    <button id="sendPrivateBtn"><i class="fas fa-paper-plane"></i></button>
+                </div>
             </div>
         </div>
         
-        <div id="notifications"></div>
+        <!-- Нижняя навигация для мобильных -->
+        <nav class="bottom-nav">
+            <button class="nav-item active" data-action="map">
+                <i class="fas fa-map"></i>
+                <span>Карта</span>
+            </button>
+            <button class="nav-item" data-action="chat">
+                <i class="fas fa-comments"></i>
+                <span>Чат</span>
+            </button>
+            <button class="nav-item" data-action="users">
+                <i class="fas fa-users"></i>
+                <span>Люди</span>
+            </button>
+            <button class="nav-item" data-action="menu">
+                <i class="fas fa-bars"></i>
+                <span>Меню</span>
+            </button>
+        </nav>
+        
+        <!-- Уведомления -->
+        <div id="notifications" class="notifications"></div>
+        
+        <!-- Индикатор подключения -->
+        <div id="connection-status" class="connection-status">
+            <i class="fas fa-wifi"></i>
+            <span>Подключение...</span>
+        </div>
     </div>
 
-    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
-    <script src="https://cdn.socket.io/4.4.1/socket.io.min.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script src="js/config.js"></script>
     <script src="js/modules/ConnectionManager.js"></script>
     <script src="js/modules/MapManager.js"></script>
@@ -76,6 +126,7 @@
     <script src="js/modules/ChatManager.js"></script>
     <script src="js/modules/RouteManager.js"></script>
     <script src="js/modules/NotificationManager.js"></script>
+    <script src="js/modules/UIManager.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

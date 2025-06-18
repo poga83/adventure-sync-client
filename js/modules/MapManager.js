@@ -7,19 +7,15 @@ class MapManager {
     }
     
     initialize() {
-        // Инициализация карты
         this.map = L.map('map').setView(CONFIG.MAP.DEFAULT_CENTER, CONFIG.MAP.DEFAULT_ZOOM);
         
-        // Добавление слоя тайлов
         L.tileLayer(CONFIG.MAP.TILE_LAYER, {
             attribution: CONFIG.MAP.ATTRIBUTION,
             maxZoom: 19
         }).addTo(this.map);
         
-        // Запрашиваем геолокацию пользователя
         this.requestUserLocation();
         
-        // Добавляем обработчик клика по карте
         this.map.on('click', (e) => {
             // Можно добавить функционал по клику на карту
         });
@@ -68,12 +64,9 @@ class MapManager {
     }
     
     updateUserLocation(position) {
-        // Обновляем позицию пользователя на сервере
         this.app.connectionManager.updateUserPosition(position);
         
-        // Обновляем маркер пользователя на карте
         if (!this.userLocationMarker) {
-            // Создаем маркер, если его еще нет
             this.userLocationMarker = L.marker(position, {
                 icon: L.divIcon({
                     className: 'user-marker user-' + this.app.connectionManager.getUserData().status,
@@ -82,11 +75,9 @@ class MapManager {
                 })
             }).addTo(this.map);
         } else {
-            // Обновляем позицию существующего маркера
             this.userLocationMarker.setLatLng(position);
         }
         
-        // Центрируем карту на позиции пользователя
         this.map.setView(position, this.map.getZoom());
     }
     
@@ -95,8 +86,6 @@ class MapManager {
         if (!user) return;
         
         const userPosition = this.app.connectionManager.getUserData().position;
-        
-        // Передаем задачу построения маршрута в RouteManager
         this.app.routeManager.createRoute(userPosition, user.position);
     }
 }

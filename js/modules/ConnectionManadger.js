@@ -15,14 +15,9 @@ class ConnectionManager {
                 this.handleReconnection();
                 this.app.notificationManager.showNotification('Подключено к серверу');
                 
-                // Отправляем информацию о пользователе
                 const userData = this.getUserData();
                 this.socket.emit('userConnected', userData);
-                
-                // Запрашиваем список пользователей
                 this.socket.emit('getUsers');
-                
-                // Запрашиваем историю сообщений
                 this.socket.emit('getGroupChatHistory');
             });
             
@@ -88,7 +83,6 @@ class ConnectionManager {
     }
     
     getUserData() {
-        // Получаем данные пользователя из localStorage или создаем новые
         let userData = localStorage.getItem(CONFIG.CACHE.USER_KEY);
         
         if (userData) {
@@ -99,7 +93,6 @@ class ConnectionManager {
             }
         }
         
-        // Если данных нет, создаем нового пользователя
         const newUser = {
             id: this.generateUserId(),
             name: 'Пользователь ' + Math.floor(Math.random() * 1000),
@@ -107,9 +100,7 @@ class ConnectionManager {
             position: CONFIG.MAP.DEFAULT_CENTER
         };
         
-        // Сохраняем в localStorage
         localStorage.setItem(CONFIG.CACHE.USER_KEY, JSON.stringify(newUser));
-        
         return newUser;
     }
     
@@ -121,14 +112,12 @@ class ConnectionManager {
         if (this.socket && this.socket.connected) {
             this.socket.emit('updateStatus', status);
         } else {
-            // Добавляем в очередь для отправки при восстановлении соединения
             this.offlineQueue.push({
                 type: 'updateStatus',
                 data: status
             });
         }
         
-        // Обновляем в localStorage
         const userData = this.getUserData();
         userData.status = status;
         localStorage.setItem(CONFIG.CACHE.USER_KEY, JSON.stringify(userData));
@@ -138,14 +127,12 @@ class ConnectionManager {
         if (this.socket && this.socket.connected) {
             this.socket.emit('updatePosition', position);
         } else {
-            // Добавляем в очередь для отправки при восстановлении соединения
             this.offlineQueue.push({
                 type: 'updatePosition',
                 data: position
             });
         }
         
-        // Обновляем в localStorage
         const userData = this.getUserData();
         userData.position = position;
         localStorage.setItem(CONFIG.CACHE.USER_KEY, JSON.stringify(userData));
@@ -156,7 +143,6 @@ class ConnectionManager {
             this.socket.emit('groupMessage', message);
             return true;
         } else {
-            // Добавляем в очередь для отправки при восстановлении соединения
             this.offlineQueue.push({
                 type: 'groupMessage',
                 data: message
@@ -170,7 +156,6 @@ class ConnectionManager {
             this.socket.emit('privateMessage', { to: userId, content: message });
             return true;
         } else {
-            // Добавляем в очередь для отправки при восстановлении соединения
             this.offlineQueue.push({
                 type: 'privateMessage',
                 data: { to: userId, content: message }
@@ -186,7 +171,6 @@ class ConnectionManager {
     }
     
     setupConnectionListeners() {
-        // Слушаем события онлайн/оффлайн
         window.addEventListener('online', () => {
             this.isOffline = false;
             this.handleReconnection();
@@ -202,7 +186,6 @@ class ConnectionManager {
         this.isOffline = true;
         this.app.notificationManager.showNotification('Потеряно соединение с сервером', 'error');
         
-        // Отключение функций, требующих онлайн-режима
         document.querySelectorAll('.requires-online').forEach(el => {
             el.classList.add('disabled');
         });
@@ -213,15 +196,12 @@ class ConnectionManager {
             this.isOffline = false;
             this.app.notificationManager.showNotification('Соединение восстановлено');
             
-            // Включение функций, требующих онлайн-режима
             document.querySelectorAll('.requires-online').forEach(el => {
                 el.classList.remove('disabled');
             });
             
-            // Синхронизация локальных изменений с сервером
             this.syncOfflineChanges();
             
-            // Переподключаемся к серверу, если нужно
             if (!this.socket || !this.socket.connected) {
                 this.connect();
             }
@@ -232,7 +212,6 @@ class ConnectionManager {
         if (this.offlineQueue.length > 0 && this.socket && this.socket.connected) {
             this.app.notificationManager.showNotification('Синхронизация данных...');
             
-            // Обрабатываем очередь сообщений
             this.offlineQueue.forEach(item => {
                 switch (item.type) {
                     case 'updateStatus':
@@ -250,9 +229,7 @@ class ConnectionManager {
                 }
             });
             
-            // Очищаем очередь
             this.offlineQueue = [];
-            
             this.app.notificationManager.showNotification('Синхронизация завершена');
         }
     }

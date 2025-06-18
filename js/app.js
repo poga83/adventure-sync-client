@@ -1,103 +1,54 @@
-class AdventureSync {
-    constructor() {
-        // Инициализация всех менеджеров
-        this.notificationManager = new NotificationManager();
-        this.authManager = new AuthManager(this);
-        this.uiManager = new UIManager(this);
-        this.connectionManager = new ConnectionManager(this);
-        this.mapManager = new MapManager(this);
-        this.markerManager = new MarkerManager(this);
-        this.chatManager = new ChatManager(this);
-        this.routeManager = new RouteManager(this);
-        
-        this.init();
+// Инициализация карты
+const map = L.map('map').setView([55.7558, 37.6173], 10);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OSM contributors'
+}).addTo(map);
+
+// Маркеры пользователей (пример)
+const userMarkers = {};
+function updateUsers(users) {
+  users.forEach(u=>{
+    if(userMarkers[u.id]) userMarkers[u.id].setLatLng(u.pos);
+    else {
+      userMarkers[u.id] = L.marker(u.pos).addTo(map);
     }
-    
-    init() {
-        console.log('Инициализация Adventure Sync...');
-        
-        // Инициализируем авторизацию первой
-        this.authManager.initialize();
-        
-        // Инициализируем UI
-        this.uiManager.initialize();
-        
-        // Инициализируем карту только после авторизации
-        this.initializeMapAfterAuth();
-        
-        // Делаем экземпляр доступным глобально
-        window.adventureSync = this;
-        
-        console.log('Adventure Sync инициализирован');
-    }
-    
-    initializeMapAfterAuth() {
-        // Ждем авторизации пользователя
-        const checkAuth = () => {
-            if (this.authManager.isAuthenticated) {
-                this.initializeMap();
-            } else {
-                setTimeout(checkAuth, 100);
-            }
-        };
-        checkAuth();
-    }
-    
-    initializeMap() {
-        console.log('Инициализация карты...');
-        
-        // Инициализируем карту
-        const map = this.mapManager.initialize();
-        
-        // Инициализируем менеджер маркеров
-        this.markerManager.initialize(map);
-        
-        // Инициализируем менеджер маршрутов
-        this.routeManager.initialize(map);
-        
-        // Инициализируем чат
-        this.chatManager.initialize();
-        
-        console.log('Карта инициализирована');
-    }
-    
-    // Методы для вызова из HTML
-    openPrivateChat(userId, userName) {
-        this.uiManager.openPrivateChat(userId, userName);
-    }
-    
-    createRouteToUser(userId) {
-        this.mapManager.createRouteToUser(userId);
-    }
-    
-    // Методы для управления приложением
-    restart() {
-        // Перезапуск приложения
-        location.reload();
-    }
-    
-    getAppInfo() {
-        return {
-            version: '2.0.0',
-            authenticated: this.authManager.isAuthenticated,
-            currentUser: this.authManager.getCurrentUser(),
-            connectedUsers: this.markerManager.users.size,
-            mapInitialized: this.mapManager.mapInitialized
-        };
-    }
+  });
 }
 
-// Инициализация приложения при загрузке DOM
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOM загружен, запуск Adventure Sync...');
-    new AdventureSync();
+// Фильтры статусов
+document.querySelectorAll('.filter-btn').forEach(btn=>{
+  btn.onclick=()=>{
+    document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const status=btn.dataset.status;
+    // TODO: применить фильтрацию маркеров по status
+  };
 });
 
-// Обработка ошибок
-window.addEventListener('error', (e) => {
-    console.error('Глобальная ошибка:', e.error);
-});
+// UI: гамбургер и сайдбар
+const menuToggle=document.getElementById('menuToggle'),
+      sidebar=document.getElementById('sidebar');
+menuToggle.onclick=()=>sidebar.classList.toggle('active');
 
-window.addEventListener('unhandledrejection', (e) => {
-    console.error('Необработанное отклонение промиса:', e.reason);
-});
+// Чат: отправка и получение (заглушка)
+const chatMessages=document.getElementById('chatMessages'),
+      chatInput=document.getElementById('chatInput'),
+      sendBtn=document.getElementById('sendBtn');
+sendBtn.onclick=sendMessage;
+chatInput.addEventListener('keypress',e=>{if(e.key==='Enter')sendMessage();});
+function sendMessage(){
+  const text=chatInput.value.trim();
+  if(!text) return;
+  const msgEl=document.createElement('div');
+  msgEl.textContent=`Вы: ${text}`;
+  chatMessages.appendChild(msgEl);
+  chatInput.value='';
+  chatMessages.scrollTop=chatMessages.scrollHeight;
+}
+// Пример: автоподгрузка сообщения
+setTimeout(()=>{const m=document.createElement('div');m.textContent='Новый пользователь подключился';chatMessages.appendChild(m);chatMessages.scrollTop=chatMessages.scrollHeight;},2000);
+
+// Переключение видимости чата
+const chatSection=document.getElementById('chat'),
+      chatToggle=document.getElementById('chatToggle');
+chatToggle.onclick=()=>chatSection.classList.toggle('hidden');

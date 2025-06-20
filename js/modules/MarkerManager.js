@@ -9,12 +9,21 @@ class MarkerManager {
     }
     
     initialize(map) {
-        // Улучшенные настройки кластеризации для мобильных
+        console.log('Инициализация MarkerManager...');
+        
+        // Получаем ID текущего пользователя
+        const currentUser = this.app.authManager.getCurrentUser();
+        if (currentUser) {
+            this.currentUserId = currentUser.id;
+            console.log('ID текущего пользователя:', this.currentUserId);
+        }
+        
+        // Создаем группу кластеризации
         this.markerClusterGroup = L.markerClusterGroup({
             chunkedLoading: true,
             spiderfyOnMaxZoom: true,
             disableClusteringAtZoom: 15,
-            maxClusterRadius: window.innerWidth <= 768 ? 60 : 50,
+            maxClusterRadius: 50,
             zoomToBoundsOnClick: true,
             showCoverageOnHover: false,
             iconCreateFunction: (cluster) => {
@@ -33,21 +42,67 @@ class MarkerManager {
         
         map.addLayer(this.markerClusterGroup);
         
-        // Получаем ID текущего пользователя
-        this.currentUserId = this.app.connectionManager.getUserData().id;
-        
+        // Восстанавливаем данные из кэша
         this.restoreFromCache();
+        
+        // ИСПРАВЛЕНО: Создаем тестовых пользователей для демонстрации
+        this.createTestUsers();
+        
+        console.log('MarkerManager инициализирован');
         return this.markerClusterGroup;
     }
     
+    // НОВЫЙ: Создание тестовых пользователей для демонстрации
+    createTestUsers() {
+        const testUsers = [
+            {
+                id: 'test_user_1',
+                name: 'Алексей',
+                nickname: 'Алексей',
+                status: 'available',
+                position: [55.7558, 37.6173] // Москва
+            },
+            {
+                id: 'test_user_2',
+                name: 'Мария',
+                nickname: 'Мария',
+                status: 'hiking',
+                position: [55.7617, 37.6155] // Красная площадь
+            },
+            {
+                id: 'test_user_3',
+                name: 'Дмитрий',
+                nickname: 'Дмитрий',
+                status: 'traveling',
+                position: [55.7539, 37.6208] // Парк Зарядье
+            },
+            {
+                id: 'test_user_4',
+                name: 'Елена',
+                nickname: 'Елена',
+                status: 'busy',
+                position: [55.7887, 37.6032] // Останкино
+            }
+        ];
+        
+        // Добавляем тестовых пользователей через 2 секунды после инициализации
+        setTimeout(() => {
+            console.log('Добавление тестовых пользователей...');
+            testUsers.forEach(user => {
+                this.addOrUpdateUser(user);
+            });
+            this.app.notificationManager.showNotification(`Добавлено ${testUsers.length} пользователей для демонстрации`);
+        }, 2000);
+    }
+    
     restoreFromCache() {
-        const cachedPositions = localStorage.getItem(CONFIG.CACHE.POSITIONS_KEY);
+        const cachedPositions = localStorage.getItem('adventure_sync_positions');
         if (cachedPositions) {
             try {
                 const positions = JSON.parse(cachedPositions);
-                console.log('Восстанавливаем из кэша:', positions.length, 'пользователей');
+                console.log('Восстановление из кэша:', positions.length, 'пользователей');
                 positions.forEach(user => {
-                    if (user.id !== this.currentUserId) { // Не добавляем самого себя
+                    if (user.id !== this.currentUserId) {
                         this.addOrUpdateUser(user);
                     }
                 });
@@ -58,15 +113,15 @@ class MarkerManager {
     }
     
     updateUsers(users) {
-        console.log('Обновление пользователей:', users.length);
+        console.log('Обновление списка пользователей:', users.length);
         
-        // Фильтруем текущего пользователя
-        const filteredUsers = users.filter(user => user.id !== this.currentUserId);
+        // ИСПРАВЛЕНО: Не фильтруем текущего пользователя здесь
+        const allUsers = Array.isArray(users) ? users : [];
         
         // Обновляем кэш
-        localStorage.setItem(CONFIG.CACHE.POSITIONS_KEY, JSON.stringify(filteredUsers));
+        localStorage.setItem('adventure_sync_positions', JSON.stringify(allUsers));
         
-        // Очищаем текущие маркеры (кроме текущего пользователя)
+        // Очищаем существующие маркеры (кроме текущего пользователя)
         this.userMarkers.forEach((marker, userId) => {
             if (userId !== this.currentUserId) {
                 this.markerClusterGroup.removeLayer(marker);
@@ -82,17 +137,23 @@ class MarkerManager {
         }
         
         // Добавляем новые маркеры
-        filteredUsers.forEach(user => {
-            this.addOrUpdateUser(user);
+        let addedCount = 0;
+        allUsers.forEach(user => {
+            if (user.id !== this.currentUserId) { // Исключаем только текущего пользователя
+                this.addOrUpdateUser(user);
+                addedCount++;
+            }
         });
+        
+        console.log(`Добавлено маркеров: ${addedCount}, всего на карте: ${this.userMarkers.size}`);
         
         // Применяем текущий фильтр
         this.applyActivityFilter(this.filteredStatuses);
         
         // Обновляем счетчик в UI
-        this.app.uiManager.updateUserCount(filteredUsers.length);
-        
-        console.log('Маркеры на карте:', this.userMarkers.size);
+        if (this.app.uiManager) {
+            this.app.uiManager.updateUsersCount(addedCount);
+        }
     }
     
     addOrUpdateUser(user) {
@@ -103,10 +164,16 @@ class MarkerManager {
         
         console.log('Добавление/обновление пользователя:', user.name, user.position);
         
+        // Проверяем корректность позиции
+        if (!user.position || !Array.isArray(user.position) || user.position.length !== 2) {
+            console.warn('Некорректная позиция пользователя:', user.name, user.position);
+            return;
+        }
+        
         // Сохраняем данные пользователя
         this.users.set(user.id, user);
         
-        // Проверяем, есть ли уже маркер для этого пользователя
+        // Проверяем, есть ли уже маркер
         if (this.userMarkers.has(user.id)) {
             // Обновляем существующий маркер
             const marker = this.userMarkers.get(user.id);
@@ -114,6 +181,7 @@ class MarkerManager {
             marker.setIcon(this.createUserIcon(user.status));
             marker.userStatus = user.status;
             marker.setPopupContent(this.createPopupContent(user));
+            console.log('Обновлен маркер пользователя:', user.name);
         } else {
             // Создаем новый маркер
             const marker = L.marker(user.position, {
@@ -126,7 +194,7 @@ class MarkerManager {
                 className: 'user-popup-container'
             });
             
-            // Сохраняем статус в маркере для фильтрации
+            // Сохраняем данные для фильтрации
             marker.userStatus = user.status;
             marker.userId = user.id;
             
@@ -134,10 +202,10 @@ class MarkerManager {
             this.markerClusterGroup.addLayer(marker);
             this.userMarkers.set(user.id, marker);
             
-            console.log('Создан маркер для пользователя:', user.name);
+            console.log('Создан новый маркер для пользователя:', user.name);
         }
         
-        // Применяем текущий фильтр
+        // Применяем фильтр
         this.applyActivityFilter(this.filteredStatuses);
     }
     
@@ -154,7 +222,9 @@ class MarkerManager {
         
         // Обновляем счетчик
         const userCount = Array.from(this.users.keys()).filter(id => id !== this.currentUserId).length;
-        this.app.uiManager.updateUserCount(userCount);
+        if (this.app.uiManager) {
+            this.app.uiManager.updateUsersCount(userCount);
+        }
     }
     
     updateUserStatus(userId, status) {
@@ -192,13 +262,13 @@ class MarkerManager {
     
     createUserIcon(status) {
         const iconHtml = this.getUserIcon(status);
-        const iconSize = window.innerWidth <= 768 ? [32, 32] : [30, 30];
+        const iconSize = [30, 30];
         
         return L.divIcon({
             className: `user-marker user-${status}`,
             html: iconHtml,
             iconSize: iconSize,
-            iconAnchor: [iconSize[0]/2, iconSize[1]/2]
+            iconAnchor: [15, 15]
         });
     }
     
@@ -207,29 +277,30 @@ class MarkerManager {
     }
     
     getUserIcon(status) {
+        const iconStyle = 'font-size: 16px; color: white;';
         switch (status) {
-            case CONFIG.STATUSES.AVAILABLE:
-                return '<i class="fas fa-user"></i>';
-            case CONFIG.STATUSES.HIKING:
-                return '<i class="fas fa-hiking"></i>';
-            case CONFIG.STATUSES.TRAVELING:
-                return '<i class="fas fa-car"></i>';
-            case CONFIG.STATUSES.BUSY:
-                return '<i class="fas fa-clock"></i>';
+            case 'available':
+                return `<i class="fas fa-user" style="${iconStyle}"></i>`;
+            case 'hiking':
+                return `<i class="fas fa-hiking" style="${iconStyle}"></i>`;
+            case 'traveling':
+                return `<i class="fas fa-car" style="${iconStyle}"></i>`;
+            case 'busy':
+                return `<i class="fas fa-clock" style="${iconStyle}"></i>`;
             default:
-                return '<i class="fas fa-user"></i>';
+                return `<i class="fas fa-user" style="${iconStyle}"></i>`;
         }
     }
     
     getStatusText(status) {
         switch (status) {
-            case CONFIG.STATUSES.AVAILABLE:
+            case 'available':
                 return 'Доступен';
-            case CONFIG.STATUSES.HIKING:
+            case 'hiking':
                 return 'В походе';
-            case CONFIG.STATUSES.TRAVELING:
+            case 'traveling':
                 return 'Путешествую';
-            case CONFIG.STATUSES.BUSY:
+            case 'busy':
                 return 'Занят';
             default:
                 return 'Неизвестно';
@@ -239,12 +310,14 @@ class MarkerManager {
     createPopupContent(user) {
         return `
             <div class="user-popup">
-                <h4>${user.name}</h4>
-                <div class="status">${this.getStatusText(user.status)}</div>
-                <button onclick="window.adventureSync.openPrivateChat('${user.id}', '${user.name}')">
+                <h4 class="user-popup-name">${user.name}</h4>
+                <div class="user-popup-status">${this.getStatusText(user.status)}</div>
+                <button onclick="window.adventureSync.openPrivateChat('${user.id}', '${user.name}')" 
+                        style="margin: 3px; padding: 6px 10px; background: #64b5f6; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
                     💬 Написать
                 </button>
-                <button onclick="window.adventureSync.createRouteToUser('${user.id}')">
+                <button onclick="window.adventureSync.mapManager.createRouteToUser('${user.id}')" 
+                        style="margin: 3px; padding: 6px 10px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
                     🗺️ Маршрут
                 </button>
             </div>
@@ -284,7 +357,7 @@ class MarkerManager {
         // Восстанавливаем вид карты
         this.app.mapManager.map.setView(currentCenter, currentZoom);
         
-        // Подсчитываем отфильтрованных пользователей
+        // Подсчитываем видимые маркеры
         let visibleCount = 0;
         this.userMarkers.forEach(marker => {
             if (this.markerClusterGroup.hasLayer(marker)) {

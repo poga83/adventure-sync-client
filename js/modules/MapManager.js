@@ -4,41 +4,104 @@ class MapManager {
         this.map = null;
         this.userLocationMarker = null;
         this.watchId = null;
-        this.mapInitialized = false;
+        this.markerPlacementMode = false;
+        this.tempMarkers = [];
     }
     
     initialize() {
-        // Настройки для мобильных устройств
-        const mapOptions = {
+        // Инициализация карты с правильными настройками контролов[11]
+        this.map = L.map('map', {
             zoomControl: false, // Отключаем стандартные контролы
-            attributionControl: false,
-            tap: true,
-            dragging: true,
-            touchZoom: true,
-            doubleClickZoom: true,
-            scrollWheelZoom: true,
-            boxZoom: false,
-            keyboard: false
-        };
+            attributionControl: false
+        }).setView([55.7558, 37.6173], 10);
         
-        this.map = L.map('map', mapOptions).setView(CONFIG.MAP.DEFAULT_CENTER, CONFIG.MAP.DEFAULT_ZOOM);
-        
-        // Добавляем темную тему для тайлов
-        const tileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        // Добавляем темную тему тайлов
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
             subdomains: 'abcd',
             maxZoom: 19
-        });
+        }).addTo(this.map);
         
-        tileLayer.addTo(this.map);
+        // Добавляем кастомные контролы в правильных позициях[12]
+        this.addCustomControls();
         
-        // Добавляем кастомные контролы для мобильных
-        this.addMobileControls();
-        
-        // Запрашиваем геолокацию пользователя
+        // Запрашиваем геолокацию
         this.requestUserLocation();
         
-        // Обработчики событий карты
+        // Обработчики событий
+        this.setupMapEvents();
+        
+        return this.map;
+    }
+    
+    addCustomControls() {
+        // Zoom контроль в правой верхней позиции[11]
+        const zoomControl = L.control.zoom({
+            position: 'topright'
+        });
+        zoomControl.addTo(this.map);
+        
+        // GPS контроль[4]
+        const gpsControl = L.control({position: 'topright'});
+        gpsControl.onAdd = (map) => {
+            const container = L.DomUtil.create('div', 'custom-control');
+            container.innerHTML = `
+                <button id="gpsBtn" title="Определить местоположение">
+                    <i class="fas fa-crosshairs"></i>
+                </button>
+            `;
+            
+            L.DomEvent.disableClickPropagation(container);
+            
+            container.querySelector('#gpsBtn').onclick = () => {
+                this.centerOnUserLocation();
+            };
+            
+            return container;
+        };
+        gpsControl.addTo(this.map);
+        
+        // Контроль размещения маркеров[16]
+        const markerControl = L.control({position: 'topright'});
+        markerControl.onAdd = (map) => {
+            const container = L.DomUtil.create('div', 'custom-control');
+            container.innerHTML = `
+                <button id="markerToggleBtn" title="Режим размещения маркеров">
+                    <i class="fas fa-map-pin"></i>
+                </button>
+                <button id="clearMarkersBtn" title="Очистить маркеры">
+                    <i class="fas fa-trash"></i>
+                </button>
+            `;
+            
+            L.DomEvent.disableClickPropagation(container);
+            
+            const toggleBtn = container.querySelector('#markerToggleBtn');
+            const clearBtn = container.querySelector('#clearMarkersBtn');
+            
+            toggleBtn.onclick = () => {
+                this.toggleMarkerPlacementMode();
+                toggleBtn.classList.toggle('active', this.markerPlacementMode);
+            };
+            
+            clearBtn.onclick = () => {
+                this.clearTempMarkers();
+            };
+            
+            return container;
+        };
+        markerControl.addTo(this.map);
+    }
+    
+    setupMapEvents() {
+        // Обработчик клика для размещения маркеров[18]
+        this.map.on('click', (e) => {
+            if (this.markerPlacementMode) {
+                this.addTempMarker(e.latlng);
+            }
+        });
+        
+        // Обработчики геолокации[6]
         this.map.on('locationfound', (e) => {
             this.onLocationFound(e);
         });
@@ -46,47 +109,11 @@ class MapManager {
         this.map.on('locationerror', (e) => {
             this.onLocationError(e);
         });
-        
-        // Улучшенная обработка для мобильных устройств
-        this.map.on('zoomend', () => {
-            this.optimizeMarkersForZoom();
-        });
-        
-        this.mapInitialized = true;
-        return this.map;
-    }
-    
-    addMobileControls() {
-        // Кастомный контрол зума
-        const zoomControl = L.control.zoom({
-            position: 'bottomright'
-        });
-        zoomControl.addTo(this.map);
-        
-        // Кнопка определения местоположения
-        const locationButton = L.control({position: 'bottomright'});
-        locationButton.onAdd = (map) => {
-            const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control leaflet-control-custom');
-            container.style.backgroundColor = 'var(--dark-graphite)';
-            container.style.color = 'var(--text-primary)';
-            container.style.width = '34px';
-            container.style.height = '34px';
-            container.style.lineHeight = '34px';
-            container.style.textAlign = 'center';
-            container.style.cursor = 'pointer';
-            container.innerHTML = '<i class="fas fa-crosshairs"></i>';
-            
-            container.onclick = () => {
-                this.centerOnUserLocation();
-            };
-            
-            return container;
-        };
-        locationButton.addTo(this.map);
     }
     
     requestUserLocation() {
         if ('geolocation' in navigator) {
+            // Используем встроенный метод Leaflet для геолокации[6]
             this.map.locate({
                 setView: true,
                 maxZoom: 16,
@@ -103,16 +130,26 @@ class MapManager {
         this.updateUserLocation(userPosition);
         this.startWatchingUserLocation();
         
-        // Уведомляем UI о подключении
-        this.app.uiManager.updateConnectionStatus('connected');
+        // Добавляем маркер с радиусом точности[6]
+        if (!this.userLocationMarker) {
+            this.userLocationMarker = L.marker(e.latlng, {
+                icon: L.divIcon({
+                    className: 'user-marker current-user',
+                    html: '<i class="fas fa-user"></i>',
+                    iconSize: [35, 35]
+                }),
+                zIndexOffset: 1000
+            }).addTo(this.map);
+            
+            L.circle(e.latlng, e.accuracy).addTo(this.map);
+        }
+        
+        this.app.notificationManager.showNotification('Местоположение определено');
     }
     
     onLocationError(e) {
         console.error('Ошибка геолокации:', e.message);
-        this.app.notificationManager.showNotification('Не удалось определить местоположение', 'warning');
-        
-        // Используем местоположение по умолчанию
-        this.updateUserLocation(CONFIG.MAP.DEFAULT_CENTER);
+        this.app.notificationManager.showNotification('Не удалось определить местоположение', 'error');
     }
     
     startWatchingUserLocation() {
@@ -123,7 +160,7 @@ class MapManager {
                     this.updateUserLocation(userPosition);
                 },
                 (error) => {
-                    console.error('Ошибка отслеживания геолокации:', error);
+                    console.error('Ошибка отслеживания:', error);
                 },
                 {
                     enableHighAccuracy: true,
@@ -134,36 +171,10 @@ class MapManager {
         }
     }
     
-    stopWatchingUserLocation() {
-        if (this.watchId !== null) {
-            navigator.geolocation.clearWatch(this.watchId);
-            this.watchId = null;
-        }
-    }
-    
     updateUserLocation(position) {
-        // Обновляем позицию пользователя на сервере
         this.app.connectionManager.updateUserPosition(position);
         
-        // Обновляем маркер пользователя на карте
-        if (!this.userLocationMarker) {
-            const userData = this.app.connectionManager.getUserData();
-            this.userLocationMarker = L.marker(position, {
-                icon: L.divIcon({
-                    className: `user-marker user-${userData.status} current-user`,
-                    html: '<i class="fas fa-user"></i>',
-                    iconSize: [35, 35]
-                }),
-                zIndexOffset: 1000 // Поверх других маркеров
-            }).addTo(this.map);
-            
-            this.userLocationMarker.bindPopup(`
-                <div class="user-popup">
-                    <h4>Ваше местоположение</h4>
-                    <div class="status">${this.app.markerManager.getStatusText(userData.status)}</div>
-                </div>
-            `);
-        } else {
+        if (this.userLocationMarker) {
             this.userLocationMarker.setLatLng(position);
         }
     }
@@ -177,42 +188,65 @@ class MapManager {
         }
     }
     
+    toggleMarkerPlacementMode() {
+        this.markerPlacementMode = !this.markerPlacementMode;
+        
+        if (this.markerPlacementMode) {
+            this.app.notificationManager.showNotification('Режим размещения маркеров включен. Кликните по карте для добавления маркера.');
+            this.map.getContainer().style.cursor = 'crosshair';
+        } else {
+            this.app.notificationManager.showNotification('Режим размещения маркеров выключен');
+            this.map.getContainer().style.cursor = '';
+        }
+    }
+    
+    addTempMarker(latlng) {
+        const marker = L.marker(latlng, {
+            icon: L.divIcon({
+                className: 'temp-marker',
+                html: '<i class="fas fa-map-pin" style="color: #ff6b6b;"></i>',
+                iconSize: [25, 25]
+            })
+        }).addTo(this.map);
+        
+        marker.bindPopup(`
+            <div style="text-align: center;">
+                <strong>Временный маркер</strong><br>
+                Координаты: ${latlng.lat.toFixed(6)}, ${latlng.lng.toFixed(6)}<br>
+                <button onclick="window.adventureSync.mapManager.removeMarker('${L.Util.stamp(marker)}')" 
+                        style="margin-top: 5px; padding: 3px 8px; background: #ff6b6b; color: white; border: none; border-radius: 3px; cursor: pointer;">
+                    Удалить
+                </button>
+            </div>
+        `);
+        
+        this.tempMarkers.push(marker);
+        this.app.notificationManager.showNotification('Маркер добавлен');
+    }
+    
+    removeMarker(markerId) {
+        const markerIndex = this.tempMarkers.findIndex(marker => L.Util.stamp(marker) == markerId);
+        if (markerIndex !== -1) {
+            this.map.removeLayer(this.tempMarkers[markerIndex]);
+            this.tempMarkers.splice(markerIndex, 1);
+            this.app.notificationManager.showNotification('Маркер удален');
+        }
+    }
+    
+    clearTempMarkers() {
+        this.tempMarkers.forEach(marker => {
+            this.map.removeLayer(marker);
+        });
+        this.tempMarkers = [];
+        this.app.notificationManager.showNotification('Все временные маркеры удалены');
+    }
+    
     createRouteToUser(userId) {
         const user = this.app.markerManager.getUser(userId);
-        if (!user) {
-            this.app.notificationManager.showNotification('Пользователь не найден', 'error');
-            return;
-        }
+        if (!user) return;
         
         const userPosition = this.app.connectionManager.getUserData().position;
         this.app.routeManager.createRoute(userPosition, user.position);
-        
-        // Закрываем сайдбар для лучшего обзора маршрута
-        this.app.uiManager.closeSidebar();
-    }
-    
-    optimizeMarkersForZoom() {
-        const zoom = this.map.getZoom();
-        
-        // Настраиваем размер маркеров в зависимости от зума
-        const markerSize = Math.max(25, Math.min(40, zoom * 2));
-        
-        this.app.markerManager.userMarkers.forEach(marker => {
-            const icon = marker.getIcon();
-            if (icon && icon.options) {
-                icon.options.iconSize = [markerSize, markerSize];
-                marker.setIcon(icon);
-            }
-        });
-    }
-    
-    fitBoundsToUsers() {
-        const markers = Array.from(this.app.markerManager.userMarkers.values());
-        
-        if (markers.length > 0) {
-            const group = new L.featureGroup(markers);
-            this.map.fitBounds(group.getBounds().pad(0.1));
-        }
     }
     
     invalidateSize() {

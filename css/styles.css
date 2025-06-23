@@ -1,22 +1,22 @@
 :root {
     /* Графитовая палитра цветов */
-    --graphite-900: #0F0F0F;     /* Самый темный */
-    --graphite-800: #1A1A1A;     /* Очень темный */
-    --graphite-700: #2C2C2C;     /* Темный */
-    --graphite-600: #3A3A3A;     /* Средне-темный */
-    --graphite-500: #4A4A4A;     /* Средний */
-    --graphite-400: #5A5A5A;     /* Средне-светлый */
-    --graphite-300: #6A6A6A;     /* Светлый */
-    --graphite-200: #8A8A8A;     /* Очень светлый */
-    --graphite-100: #B0B0B0;     /* Самый светлый */
+    --graphite-900: #0F0F0F;
+    --graphite-800: #1A1A1A;
+    --graphite-700: #2C2C2C;
+    --graphite-600: #3A3A3A;
+    --graphite-500: #4A4A4A;
+    --graphite-400: #5A5A5A;
+    --graphite-300: #6A6A6A;
+    --graphite-200: #8A8A8A;
+    --graphite-100: #B0B0B0;
     
     /* Акцентные цвета */
-    --accent-cyan: #00BCD4;       /* Основной акцент */
-    --accent-teal: #009688;       /* Дополнительный акцент */
-    --accent-lime: #8BC34A;       /* Успех */
-    --accent-orange: #FF9800;     /* Предупреждение */
-    --accent-red: #F44336;        /* Ошибка */
-    --accent-purple: #9C27B0;     /* Специальный */
+    --accent-cyan: #00BCD4;
+    --accent-teal: #009688;
+    --accent-lime: #8BC34A;
+    --accent-orange: #FF9800;
+    --accent-red: #F44336;
+    --accent-purple: #9C27B0;
     
     /* Текстовые цвета */
     --text-primary: #FFFFFF;
@@ -358,25 +358,34 @@ body, html {
     transform: scale(1.05);
 }
 
-/* Карта */
+/* ИСПРАВЛЕНО: Карта с явной высотой для предотвращения черного экрана */
 .map-wrapper {
     flex: 1;
     position: relative;
     height: calc(100vh - var(--header-height));
     overflow: hidden;
+    background: var(--graphite-800); /* Фон на случай задержки загрузки тайлов */
 }
 
 .map-container {
     width: 100%;
-    height: 100%;
+    height: 100%; /* КРИТИЧНО: явная высота 100% для Leaflet */
     position: relative;
     z-index: 1;
 }
 
 #map {
-    width: 100%;
-    height: 100%;
-    background: var(--graphite-800);
+    width: 100% !important; /* КРИТИЧНО: принудительная ширина */
+    height: 100% !important; /* КРИТИЧНО: принудительная высота */
+    background: var(--graphite-700); /* Светлый фон для диагностики */
+    min-height: 400px; /* Минимальная высота на случай проблем с flex */
+}
+
+/* КРИТИЧНО: Убеждаемся что Leaflet контейнер имеет правильные размеры */
+.leaflet-container {
+    width: 100% !important;
+    height: 100% !important;
+    background: #f5f5f5 !important; /* Светлый фон для диагностики проблем */
 }
 
 /* Боковая панель */
@@ -869,7 +878,7 @@ body, html {
     to { transform: translateX(0); opacity: 1; }
 }
 
-/* Статус подключения */
+/* ИСПРАВЛЕНО: Статус подключения с детальной информацией */
 .connection-status {
     position: fixed;
     top: 24px;
@@ -884,7 +893,7 @@ body, html {
     font-size: 0.875rem;
     font-weight: 500;
     z-index: 10001;
-    min-width: 140px;
+    min-width: 180px;
     transition: var(--transition);
     box-shadow: var(--shadow-md);
 }
@@ -1022,9 +1031,10 @@ body, html {
 .marker-cluster-medium { width: 50px; height: 50px; }
 .marker-cluster-large { width: 60px; height: 60px; }
 
-/* Кастомизация Leaflet */
+/* ИСПРАВЛЕНО: Кастомизация Leaflet для предотвращения черного экрана */
 .leaflet-container {
-    background: var(--graphite-800) !important;
+    background: #f0f0f0 !important; /* Светлый фон для диагностики */
+    font-family: inherit !important;
 }
 
 .leaflet-control-zoom {
@@ -1144,7 +1154,7 @@ body, html {
         right: 16px;
         font-size: 0.75rem;
         padding: 8px 12px;
-        min-width: 120px;
+        min-width: 140px;
     }
     
     .login-content {

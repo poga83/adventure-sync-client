@@ -5,33 +5,48 @@ class ConnectionManager {
         this.isOffline = !navigator.onLine;
         this.offlineQueue = [];
         this.connectionAttempts = 0;
-        this.maxConnectionAttempts = 5;
-        this.reconnectDelay = 1000;
+        this.maxConnectionAttempts = CONFIG.SOCKET.RECONNECTION_ATTEMPTS;
+        this.reconnectDelay = CONFIG.SOCKET.RECONNECTION_DELAY;
         this.setupConnectionListeners();
     }
 
-    connect() {
+    async connect() {
         if (this.socket && this.socket.connected) {
             console.log('✅ Уже подключен к серверу');
             this.updateConnectionStatus('connected');
             return true;
         }
 
-        console.log('🔄 Попытка подключения к серверу...');
+        console.log('🔄 Тестирование подключения к серверу...');
+        
+        // ИСПРАВЛЕНО: Тестируем доступность сервера перед подключением
+        const serverAvailable = await CONFIG.testServerConnection();
+        if (!serverAvailable) {
+            console.error('❌ Сервер недоступен по всем адресам');
+            this.handleConnectionError(new Error('Сервер недоступен'));
+            return false;
+        }
+
+        console.log(`🔄 Подключение к серверу: ${CONFIG.SERVER_URL}`);
         this.updateConnectionStatus('connecting');
 
         try {
-            // ИСПРАВЛЕНО: Улучшенная конфигурация Socket.IO
+            // ИСПРАВЛЕНО: Улучшенная конфигурация Socket.IO с детальными настройками
             this.socket = io(CONFIG.SERVER_URL, {
-                transports: ['websocket', 'polling'],
-                timeout: 10000,
+                transports: ['websocket', 'polling'], // Поддержка обоих транспортов
+                timeout: CONFIG.SOCKET.TIMEOUT,
                 reconnection: true,
                 reconnectionAttempts: this.maxConnectionAttempts,
                 reconnectionDelay: this.reconnectDelay,
                 reconnectionDelayMax: 5000,
+                randomizationFactor: 0.5,
                 forceNew: false,
                 autoConnect: true,
                 withCredentials: true,
+                upgrade: true,
+                rememberUpgrade: false,
+                pingTimeout: CONFIG.SOCKET.PING_TIMEOUT,
+                pingInterval: CONFIG.SOCKET.PING_INTERVAL,
                 extraHeaders: {
                     'Access-Control-Allow-Origin': window.location.origin
                 }
@@ -48,9 +63,16 @@ class ConnectionManager {
     }
 
     setupSocketEvents() {
+        // ИСПРАВЛЕНО: Подтверждение подключения от сервера
+        this.socket.on('connectionConfirmed', (data) => {
+            console.log('✅ Подтверждение подключения от сервера:', data);
+        });
+
         // Успешное подключение
         this.socket.on('connect', () => {
             console.log('✅ Подключен к серверу, ID:', this.socket.id);
+            console.log('🔗 Транспорт:', this.socket.io.engine.transport.name);
+            
             this.connectionAttempts = 0;
             this.updateConnectionStatus('connected');
             this.app.notificationManager.showNotification('Подключено к серверу', 'success');
@@ -68,11 +90,24 @@ class ConnectionManager {
             this.syncOfflineChanges();
         });
         
+        // Изменение транспорта
+        this.socket.io.on('upgrade', () => {
+            console.log('🔄 Обновление транспорта на:', this.socket.io.engine.transport.name);
+        });
+        
         // Отключение
         this.socket.on('disconnect', (reason) => {
             console.log('❌ Отключен от сервера:', reason);
             this.updateConnectionStatus('disconnected');
-            this.app.notificationManager.showNotification(`Отключено: ${reason}`, 'error');
+            
+            let message = 'Отключено от сервера';
+            if (reason === 'io server disconnect') {
+                message = 'Сервер принудительно разорвал соединение';
+            } else if (reason === 'transport close') {
+                message = 'Потеря соединения с сервером';
+            }
+            
+            this.app.notificationManager.showNotification(message, 'error');
         });
 
         // ИСПРАВЛЕНО: Детальная обработка ошибок подключения
@@ -80,35 +115,54 @@ class ConnectionManager {
             console.error('❌ Ошибка подключения:', error);
             this.connectionAttempts++;
             
-            let errorMessage = 'Ошибка подключения';
+            let errorMessage = 'Ошибка подключения к серверу';
+            let errorDetails = '';
             
-            // Определяем тип ошибки по коду или сообщению
-            if (error.message.includes('timeout')) {
-                errorMessage = 'Превышено время ожидания';
-            } else if (error.message.includes('CORS')) {
-                errorMessage = 'Ошибка CORS';
-            } else if (error.message.includes('404')) {
-                errorMessage = 'Сервер не найден (404)';
-            } else if (error.message.includes('xhr poll error')) {
-                errorMessage = 'Ошибка XHR polling';
+            // Определяем тип ошибки для более точного сообщения
+            if (error.message) {
+                if (error.message.includes('timeout')) {
+                    errorMessage = 'Превышено время ожидания подключения';
+                    errorDetails = 'Проверьте, что сервер запущен';
+                } else if (error.message.includes('CORS')) {
+                    errorMessage = 'Ошибка CORS политики';
+                    errorDetails = 'Проблема с настройками безопасности сервера';
+                } else if (error.message.includes('404')) {
+                    errorMessage = 'Сервер не найден (404)';
+                    errorDetails = 'Убедитесь, что сервер запущен на правильном порту';
+                } else if (error.message.includes('xhr poll error')) {
+                    errorMessage = 'Ошибка XHR polling';
+                    errorDetails = 'Проблема с транспортом данных';
+                } else if (error.message.includes('ECONNREFUSED')) {
+                    errorMessage = 'Соединение отклонено';
+                    errorDetails = 'Сервер не принимает подключения';
+                }
             }
             
             if (this.connectionAttempts >= this.maxConnectionAttempts) {
+                console.error(`❌ Исчерпаны попытки подключения (${this.maxConnectionAttempts})`);
                 this.handleConnectionError(error);
             } else {
                 this.updateConnectionStatus('connecting');
-                this.app.notificationManager.showNotification(
-                    `${errorMessage} (${this.connectionAttempts}/${this.maxConnectionAttempts})`, 
-                    'warning'
-                );
+                const attemptMessage = `${errorMessage} (${this.connectionAttempts}/${this.maxConnectionAttempts})`;
+                this.app.notificationManager.showNotification(attemptMessage, 'warning');
+                
+                // Показываем детали ошибки в консоли
+                if (errorDetails) {
+                    console.warn(`💡 Рекомендация: ${errorDetails}`);
+                }
             }
         });
 
-        // Принудительное отключение
+        // Принудительное отключение с попыткой переподключения
         this.socket.on('disconnect', (reason) => {
             if (reason === 'io server disconnect') {
-                // Сервер принудительно отключил клиента
-                this.socket.connect();
+                // Сервер принудительно отключил клиента, пытаемся переподключиться
+                console.log('🔄 Попытка переподключения после принудительного отключения...');
+                setTimeout(() => {
+                    if (this.socket && !this.socket.connected) {
+                        this.socket.connect();
+                    }
+                }, this.reconnectDelay);
             }
         });
         
@@ -165,7 +219,7 @@ class ConnectionManager {
         // Обработка общих ошибок
         this.socket.on('error', (error) => {
             console.error('❌ Ошибка Socket.IO:', error);
-            this.app.notificationManager.showNotification('Ошибка соединения', 'error');
+            this.app.notificationManager.showNotification(`Ошибка соединения: ${error.message || 'Неизвестная ошибка'}`, 'error');
         });
     }
 
@@ -173,20 +227,29 @@ class ConnectionManager {
         console.error('❌ Критическая ошибка подключения:', error);
         this.updateConnectionStatus('offline');
         
-        let errorMessage = 'Не удалось подключиться к серверу.';
+        let errorMessage = 'Не удалось подключиться к серверу Adventure Sync.';
         let suggestions = [];
         
-        if (error.message.includes('ECONNREFUSED')) {
+        // Анализируем ошибку и даем рекомендации
+        if (error.message && error.message.includes('ECONNREFUSED')) {
             suggestions.push('Убедитесь, что сервер запущен на порту 3000');
-        }
-        if (error.message.includes('CORS')) {
+            suggestions.push('Проверьте команду: npm start в папке adventure-sync-server');
+        } else if (error.message && error.message.includes('CORS')) {
             suggestions.push('Проверьте CORS настройки сервера');
+            suggestions.push('Убедитесь, что клиент запущен с правильного домена');
+        } else if (error.message && error.message.includes('timeout')) {
+            suggestions.push('Проверьте подключение к интернету');
+            suggestions.push('Попробуйте перезапустить сервер');
+        } else {
+            suggestions.push('Проверьте, что сервер Adventure Sync запущен');
+            suggestions.push('Убедитесь, что порт 3000 не заблокирован');
         }
         
-        this.app.notificationManager.showNotification(
-            `${errorMessage} ${suggestions.join('. ')}`, 
-            'error'
-        );
+        const fullMessage = suggestions.length > 0 
+            ? `${errorMessage}\n\nРекомендации:\n• ${suggestions.join('\n• ')}`
+            : errorMessage;
+            
+        this.app.notificationManager.showNotification(fullMessage, 'error');
         
         // Переводим в оффлайн режим
         this.handleDisconnection();
@@ -203,13 +266,14 @@ class ConnectionManager {
             switch (status) {
                 case 'connected':
                     iconElement.className = 'fas fa-wifi';
-                    textElement.textContent = 'Онлайн';
+                    textElement.textContent = 'Подключен к серверу';
                     statusElement.style.opacity = '0.8';
+                    // Скрываем через 5 секунд после успешного подключения
                     setTimeout(() => {
-                        if (status === 'connected') {
-                            statusElement.style.opacity = '0.5';
+                        if (statusElement.classList.contains('connected')) {
+                            statusElement.style.opacity = '0.4';
                         }
-                    }, 3000);
+                    }, 5000);
                     break;
                 case 'disconnected':
                     iconElement.className = 'fas fa-exclamation-triangle';
@@ -218,12 +282,12 @@ class ConnectionManager {
                     break;
                 case 'connecting':
                     iconElement.className = 'fas fa-spinner fa-spin';
-                    textElement.textContent = 'Подключение...';
+                    textElement.textContent = 'Подключение к серверу...';
                     statusElement.style.opacity = '1';
                     break;
                 case 'offline':
                     iconElement.className = 'fas fa-times-circle';
-                    textElement.textContent = 'Оффлайн';
+                    textElement.textContent = 'Оффлайн режим';
                     statusElement.style.opacity = '1';
                     break;
             }
@@ -233,16 +297,30 @@ class ConnectionManager {
     // Тестирование подключения к серверу
     async testConnection() {
         try {
-            const response = await fetch(`${CONFIG.SERVER_URL}/api/status`);
+            console.log('🔍 Тестирование доступности сервера...');
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            
+            const response = await fetch(`${CONFIG.SERVER_URL}/api/status`, {
+                signal: controller.signal,
+                method: 'GET',
+                mode: 'cors'
+            });
+            
+            clearTimeout(timeoutId);
+            
             if (response.ok) {
                 const data = await response.json();
                 console.log('✅ Сервер доступен:', data);
                 return true;
+            } else {
+                console.error('❌ Сервер отвечает с ошибкой:', response.status);
+                return false;
             }
         } catch (error) {
-            console.error('❌ Сервер недоступен:', error);
+            console.error('❌ Сервер недоступен:', error.message);
+            return false;
         }
-        return false;
     }
     
     disconnect() {
@@ -269,7 +347,7 @@ class ConnectionManager {
         return null;
     }
     
-    // Остальные методы остаются без изменений...
+    // Методы для отправки данных
     updateUserStatus(status) {
         if (this.socket && this.socket.connected) {
             this.socket.emit('updateStatus', status);
@@ -336,7 +414,7 @@ class ConnectionManager {
     handleReconnection() {
         if (this.isOffline) {
             this.isOffline = false;
-            this.app.notificationManager.showNotification('Соединение восстановлено');
+            this.app.notificationManager.showNotification('Соединение с интернетом восстановлено');
             
             document.querySelectorAll('.requires-online').forEach(el => {
                 el.classList.remove('disabled');
@@ -350,6 +428,7 @@ class ConnectionManager {
     
     syncOfflineChanges() {
         if (this.offlineQueue.length > 0 && this.socket && this.socket.connected) {
+            console.log(`🔄 Синхронизация ${this.offlineQueue.length} оффлайн изменений...`);
             this.app.notificationManager.showNotification('Синхронизация данных...');
             
             this.offlineQueue.forEach(item => {
@@ -370,7 +449,7 @@ class ConnectionManager {
             });
             
             this.offlineQueue = [];
-            this.app.notificationManager.showNotification('Синхронизация завершена');
+            this.app.notificationManager.showNotification('Синхронизация завершена', 'success');
         }
     }
 }

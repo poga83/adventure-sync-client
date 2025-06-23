@@ -1,58 +1,72 @@
 class UserManager {
     constructor() {
-        this.users = new Map(); // Хранит пользователей по их ID
-        this.socketMap = new Map(); // Хранит соответствие socket.id -> user.id
+        this.users = new Map(); // socketId -> userData
+        this.usersByUserId = new Map(); // userId -> userData
     }
     
-    addUser(userData) {
-        // Добавляем пользователя в Map
-        this.users.set(userData.id, userData);
+    addUser(socketId, userData) {
+        const user = {
+            ...userData,
+            socketId: socketId,
+            connectedAt: new Date().toISOString(),
+            lastSeen: new Date().toISOString()
+        };
         
-        // Добавляем соответствие socket.id -> user.id
-        this.socketMap.set(userData.socketId, userData.id);
+        this.users.set(socketId, user);
+        this.usersByUserId.set(userData.id, user);
         
-        return userData;
+        console.log(`➕ Пользователь добавлен: ${userData.nickname} (${socketId})`);
+        return user;
     }
     
-    removeUser(userId) {
-        const user = this.users.get(userId);
+    removeUser(socketId) {
+        const user = this.users.get(socketId);
         if (user) {
-            // Удаляем соответствие socket.id -> user.id
-            this.socketMap.delete(user.socketId);
-            
-            // Удаляем пользователя
-            this.users.delete(userId);
+            this.users.delete(socketId);
+            this.usersByUserId.delete(user.id);
+            console.log(`➖ Пользователь удален: ${user.nickname} (${socketId})`);
         }
+        return user;
     }
     
-    getUser(userId) {
-        return this.users.get(userId);
+    updateUserStatus(socketId, status) {
+        const user = this.users.get(socketId);
+        if (user) {
+            user.status = status;
+            user.lastSeen = new Date().toISOString();
+            this.usersByUserId.set(user.id, user);
+        }
+        return user;
     }
     
-    getUserBySocketId(socketId) {
-        const userId = this.socketMap.get(socketId);
-        if (userId) {
-            return this.users.get(userId);
+    updateUserPosition(socketId, position) {
+        const user = this.users.get(socketId);
+        if (user) {
+            user.position = position;
+            user.lastSeen = new Date().toISOString();
+            this.usersByUserId.set(user.id, user);
         }
-        return null;
+        return user;
+    }
+    
+    getUser(socketId) {
+        return this.users.get(socketId);
+    }
+    
+    getUserByUserId(userId) {
+        return this.usersByUserId.get(userId);
     }
     
     getAllUsers() {
         return Array.from(this.users.values());
     }
     
-    updateUserStatus(userId, status) {
-        const user = this.users.get(userId);
-        if (user) {
-            user.status = status;
-        }
+    getUserCount() {
+        return this.users.size;
     }
     
-    updateUserPosition(userId, position) {
-        const user = this.users.get(userId);
-        if (user) {
-            user.position = position;
-        }
+    getUsersByStatus(status) {
+        return Array.from(this.users.values()).filter(user => user.status === status);
     }
 }
 

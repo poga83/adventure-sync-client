@@ -4,74 +4,173 @@ class ConnectionManager {
         this.socket = null;
         this.isOffline = !navigator.onLine;
         this.offlineQueue = [];
+        this.connectionAttempts = 0;
+        this.maxConnectionAttempts = 3;
         this.setupConnectionListeners();
     }
 
     connect() {
+        if (this.socket && this.socket.connected) {
+            console.log('Уже подключен к серверу');
+            this.updateConnectionStatus('connected');
+            return true;
+        }
+
+        console.log('Попытка подключения к серверу...');
+        this.updateConnectionStatus('connecting');
+
         try {
-            this.socket = io(CONFIG.SERVER_URL);
+            // ИСПРАВЛЕНО: Добавлены опции для лучшего подключения
+            this.socket = io(CONFIG.SERVER_URL, {
+                transports: ['websocket', 'polling'],
+                timeout: 5000,
+                reconnection: true,
+                reconnectionAttempts: this.maxConnectionAttempts,
+                reconnectionDelay: 1000,
+                forceNew: true
+            });
             
-            this.socket.on('connect', () => {
-                this.handleReconnection();
-                this.app.notificationManager.showNotification('Подключено к серверу');
-                
-                const userData = this.getUserData();
+            this.setupSocketEvents();
+            return true;
+            
+        } catch (error) {
+            console.error('Ошибка при создании Socket.IO соединения:', error);
+            this.handleConnectionError();
+            return false;
+        }
+    }
+
+    setupSocketEvents() {
+        this.socket.on('connect', () => {
+            console.log('✅ Подключен к серверу');
+            this.connectionAttempts = 0;
+            this.updateConnectionStatus('connected');
+            this.app.notificationManager.showNotification('Подключено к серверу', 'success');
+            
+            // Отправляем информацию о пользователе
+            const userData = this.getUserData();
+            if (userData) {
+                console.log('Отправляем данные пользователя:', userData);
                 this.socket.emit('userConnected', userData);
                 this.socket.emit('getUsers');
                 this.socket.emit('getGroupChatHistory');
-            });
+            }
+        });
+        
+        this.socket.on('disconnect', (reason) => {
+            console.log('❌ Отключен от сервера:', reason);
+            this.updateConnectionStatus('disconnected');
+            this.app.notificationManager.showNotification('Отключено от сервера', 'error');
+        });
+
+        this.socket.on('connect_error', (error) => {
+            console.error('❌ Ошибка подключения:', error.message);
+            this.connectionAttempts++;
             
-            this.socket.on('disconnect', () => {
-                this.handleDisconnection();
-                this.app.notificationManager.showNotification('Отключено от сервера', 'error');
-            });
+            if (this.connectionAttempts >= this.maxConnectionAttempts) {
+                this.handleConnectionError();
+            } else {
+                this.updateConnectionStatus('connecting');
+                this.app.notificationManager.showNotification(`Попытка подключения ${this.connectionAttempts}/${this.maxConnectionAttempts}`, 'warning');
+            }
+        });
+        
+        // Обработчики событий от сервера
+        this.socket.on('users', (users) => {
+            console.log('📥 Получен список пользователей:', users.length);
+            this.app.markerManager.updateUsers(users);
+        });
+        
+        this.socket.on('userConnected', (user) => {
+            console.log('👤 Пользователь подключился:', user.name);
+            this.app.markerManager.addOrUpdateUser(user);
+            this.app.notificationManager.showNotification(`${user.name} онлайн`);
+        });
+        
+        this.socket.on('userDisconnected', (userId) => {
+            console.log('👤 Пользователь отключился:', userId);
+            const user = this.app.markerManager.getUser(userId);
+            if (user) {
+                this.app.notificationManager.showNotification(`${user.name} оффлайн`);
+                this.app.markerManager.removeUser(userId);
+            }
+        });
+        
+        this.socket.on('userStatusChanged', (data) => {
+            console.log('🔄 Статус пользователя изменен:', data);
+            this.app.markerManager.updateUserStatus(data.userId, data.status);
+        });
+        
+        this.socket.on('userPositionChanged', (data) => {
+            this.app.markerManager.updateUserPosition(data.userId, data.position);
+        });
+        
+        this.socket.on('groupMessage', (message) => {
+            console.log('💬 Получено сообщение в общем чате:', message);
+            this.app.chatManager.addGroupMessage(message);
+        });
+        
+        this.socket.on('privateMessage', (message) => {
+            console.log('💬 Получено приватное сообщение:', message);
+            this.app.chatManager.addPrivateMessage(message);
+        });
+        
+        this.socket.on('groupChatHistory', (messages) => {
+            console.log('📋 Получена история группового чата:', messages.length, 'сообщений');
+            this.app.chatManager.setGroupChatHistory(messages);
+        });
+        
+        this.socket.on('privateChatHistory', (data) => {
+            console.log('📋 Получена история приватного чата:', data);
+            this.app.chatManager.setPrivateChatHistory(data.userId, data.messages);
+        });
+    }
+
+    handleConnectionError() {
+        this.updateConnectionStatus('offline');
+        this.app.notificationManager.showNotification(
+            'Не удалось подключиться к серверу. Работаем в оффлайн режиме.', 
+            'error'
+        );
+        
+        // Переводим в оффлайн режим
+        this.handleDisconnection();
+    }
+
+    updateConnectionStatus(status) {
+        const statusElement = document.getElementById('connectionStatus');
+        if (statusElement) {
+            const iconElement = statusElement.querySelector('i');
+            const textElement = statusElement.querySelector('span');
             
-            this.socket.on('users', (users) => {
-                this.app.markerManager.updateUsers(users);
-            });
+            // Убираем все классы статуса
+            statusElement.className = `connection-status ${status}`;
             
-            this.socket.on('userConnected', (user) => {
-                this.app.markerManager.addOrUpdateUser(user);
-                this.app.notificationManager.showNotification(`${user.name} онлайн`);
-            });
-            
-            this.socket.on('userDisconnected', (userId) => {
-                const user = this.app.markerManager.getUser(userId);
-                if (user) {
-                    this.app.notificationManager.showNotification(`${user.name} оффлайн`);
-                    this.app.markerManager.removeUser(userId);
-                }
-            });
-            
-            this.socket.on('userStatusChanged', (data) => {
-                this.app.markerManager.updateUserStatus(data.userId, data.status);
-            });
-            
-            this.socket.on('userPositionChanged', (data) => {
-                this.app.markerManager.updateUserPosition(data.userId, data.position);
-            });
-            
-            this.socket.on('groupMessage', (message) => {
-                this.app.chatManager.addGroupMessage(message);
-            });
-            
-            this.socket.on('privateMessage', (message) => {
-                this.app.chatManager.addPrivateMessage(message);
-            });
-            
-            this.socket.on('groupChatHistory', (messages) => {
-                this.app.chatManager.setGroupChatHistory(messages);
-            });
-            
-            this.socket.on('privateChatHistory', (data) => {
-                this.app.chatManager.setPrivateChatHistory(data.userId, data.messages);
-            });
-            
-            return true;
-        } catch (error) {
-            console.error('Ошибка подключения:', error);
-            this.handleDisconnection();
-            return false;
+            switch (status) {
+                case 'connected':
+                    iconElement.className = 'fas fa-wifi';
+                    textElement.textContent = 'Онлайн';
+                    // Скрываем через 3 секунды
+                    setTimeout(() => {
+                        statusElement.style.opacity = '0.7';
+                    }, 3000);
+                    break;
+                case 'disconnected':
+                    iconElement.className = 'fas fa-wifi';
+                    textElement.textContent = 'Переподключение...';
+                    statusElement.style.opacity = '1';
+                    break;
+                case 'connecting':
+                    iconElement.className = 'fas fa-spinner fa-spin';
+                    textElement.textContent = 'Подключение...';
+                    statusElement.style.opacity = '1';
+                    break;
+                case 'offline':
+                    iconElement.className = 'fas fa-exclamation-triangle';
+                    textElement.textContent = 'Оффлайн';
+                    statusElement.style.opacity = '1';
+                    break;
+            }
         }
     }
     
@@ -79,12 +178,16 @@ class ConnectionManager {
         if (this.socket) {
             this.socket.disconnect();
             this.socket = null;
+            console.log('🔌 Соединение с сервером закрыто');
         }
     }
     
     getUserData() {
-        let userData = localStorage.getItem(CONFIG.CACHE.USER_KEY);
+        if (this.app.authManager && this.app.authManager.currentUser) {
+            return this.app.authManager.currentUser;
+        }
         
+        const userData = localStorage.getItem(CONFIG.CACHE.USER_KEY);
         if (userData) {
             try {
                 return JSON.parse(userData);
@@ -92,20 +195,7 @@ class ConnectionManager {
                 console.error('Ошибка при чтении данных пользователя:', e);
             }
         }
-        
-        const newUser = {
-            id: this.generateUserId(),
-            name: 'Пользователь ' + Math.floor(Math.random() * 1000),
-            status: CONFIG.STATUSES.AVAILABLE,
-            position: CONFIG.MAP.DEFAULT_CENTER
-        };
-        
-        localStorage.setItem(CONFIG.CACHE.USER_KEY, JSON.stringify(newUser));
-        return newUser;
-    }
-    
-    generateUserId() {
-        return 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        return null;
     }
     
     updateUserStatus(status) {
@@ -117,10 +207,6 @@ class ConnectionManager {
                 data: status
             });
         }
-        
-        const userData = this.getUserData();
-        userData.status = status;
-        localStorage.setItem(CONFIG.CACHE.USER_KEY, JSON.stringify(userData));
     }
     
     updateUserPosition(position) {
@@ -132,10 +218,6 @@ class ConnectionManager {
                 data: position
             });
         }
-        
-        const userData = this.getUserData();
-        userData.position = position;
-        localStorage.setItem(CONFIG.CACHE.USER_KEY, JSON.stringify(userData));
     }
     
     sendGroupMessage(message) {
@@ -184,7 +266,7 @@ class ConnectionManager {
     
     handleDisconnection() {
         this.isOffline = true;
-        this.app.notificationManager.showNotification('Потеряно соединение с сервером', 'error');
+        this.updateConnectionStatus('offline');
         
         document.querySelectorAll('.requires-online').forEach(el => {
             el.classList.add('disabled');

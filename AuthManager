@@ -187,6 +187,7 @@
     
     <!-- Основные скрипты приложения -->
     <script src="./js/config.js"></script>
+    <script src="./js/modules/UIManager.js"></script>
     <script src="./js/modules/AuthManager.js"></script>
     <script src="./js/modules/ConnectionManager.js"></script>
     <script src="./js/modules/MapManager.js"></script>

@@ -11,14 +11,12 @@ class MarkerManager {
     initialize(map) {
         console.log('👥 Инициализация MarkerManager...');
         
-        // Получаем ID текущего пользователя
         const currentUser = this.app.authManager.getCurrentUser();
         if (currentUser) {
             this.currentUserId = currentUser.id;
             console.log('🆔 ID текущего пользователя:', this.currentUserId);
         }
         
-        // Создаем группу кластеризации
         this.markerClusterGroup = L.markerClusterGroup({
             chunkedLoading: true,
             spiderfyOnMaxZoom: true,
@@ -41,65 +39,13 @@ class MarkerManager {
         });
         
         map.addLayer(this.markerClusterGroup);
-        
-        // Восстанавливаем данные из кэша
         this.restoreFromCache();
         
-        // ИСПРАВЛЕНО: Создаем тестовых пользователей с новыми статусами
-        this.createTestUsers();
+        // УДАЛЕНО: Создание тестовых пользователей (по запросу)
+        // this.createTestUsers();
         
         console.log('✅ MarkerManager инициализирован');
         return this.markerClusterGroup;
-    }
-    
-    // ИСПРАВЛЕНО: Тестовые пользователи с новыми статусами
-    createTestUsers() {
-        const testUsers = [
-            {
-                id: 'test_user_1',
-                name: 'Алексей',
-                nickname: 'Алексей',
-                status: 'auto',
-                position: [55.7558, 37.6173] // Москва
-            },
-            {
-                id: 'test_user_2',
-                name: 'Мария',
-                nickname: 'Мария',
-                status: 'moto',
-                position: [55.7617, 37.6155] // Красная площадь
-            },
-            {
-                id: 'test_user_3',
-                name: 'Дмитрий',
-                nickname: 'Дмитрий',
-                status: 'walking',
-                position: [55.7539, 37.6208] // Парк Зарядье
-            },
-            {
-                id: 'test_user_4',
-                name: 'Елена',
-                nickname: 'Елена',
-                status: 'busy',
-                position: [55.7887, 37.6032] // Останкино
-            },
-            {
-                id: 'test_user_5',
-                name: 'Игорь',
-                nickname: 'Игорь',
-                status: 'auto',
-                position: [55.7344, 37.5895] // Воробьевы горы
-            }
-        ];
-        
-        // Добавляем тестовых пользователей через 2 секунды после инициализации
-        setTimeout(() => {
-            console.log('👥 Добавление тестовых пользователей...');
-            testUsers.forEach(user => {
-                this.addOrUpdateUser(user);
-            });
-            this.app.notificationManager.showNotification(`Добавлено ${testUsers.length} пользователей для демонстрации`);
-        }, 2000);
     }
     
     restoreFromCache() {
@@ -122,10 +68,7 @@ class MarkerManager {
     updateUsers(users) {
         console.log('🔄 Обновление списка пользователей:', users.length);
         
-        // Не фильтруем текущего пользователя здесь
         const allUsers = Array.isArray(users) ? users : [];
-        
-        // Обновляем кэш
         localStorage.setItem(CONFIG.CACHE.POSITIONS_KEY, JSON.stringify(allUsers));
         
         // Очищаем существующие маркеры (кроме текущего пользователя)
@@ -136,83 +79,68 @@ class MarkerManager {
             }
         });
         
-        // Очищаем данные пользователей (кроме текущего)
         const currentUser = this.users.get(this.currentUserId);
         this.users.clear();
         if (currentUser) {
             this.users.set(this.currentUserId, currentUser);
         }
         
-        // Добавляем новые маркеры
         let addedCount = 0;
         allUsers.forEach(user => {
-            if (user.id !== this.currentUserId) { // Исключаем только текущего пользователя
+            if (user.id !== this.currentUserId) {
                 this.addOrUpdateUser(user);
                 addedCount++;
             }
         });
         
         console.log(`✅ Добавлено маркеров: ${addedCount}, всего на карте: ${this.userMarkers.size}`);
-        
-        // Применяем текущий фильтр
         this.applyActivityFilter(this.filteredStatuses);
         
-        // Обновляем счетчик в UI
         if (this.app.uiManager) {
             this.app.uiManager.updateUsersCount(addedCount);
         }
     }
     
     addOrUpdateUser(user) {
-        // Не добавляем самого себя
-        if (user.id === this.currentUserId) {
-            return;
-        }
+        if (user.id === this.currentUserId) return;
         
         console.log('➕ Добавление/обновление пользователя:', user.name, user.position);
         
-        // Проверяем корректность позиции
         if (!user.position || !Array.isArray(user.position) || user.position.length !== 2) {
             console.warn('⚠️ Некорректная позиция пользователя:', user.name, user.position);
             return;
         }
         
-        // Сохраняем данные пользователя
         this.users.set(user.id, user);
         
-        // Проверяем, есть ли уже маркер
         if (this.userMarkers.has(user.id)) {
-            // Обновляем существующий маркер
             const marker = this.userMarkers.get(user.id);
             marker.setLatLng(user.position);
-            marker.setIcon(this.createUserIcon(user.status));
+            // ИСПРАВЛЕНО: Принудительное обновление иконки
+            const newIcon = this.createUserIcon(user.status);
+            marker.setIcon(newIcon);
             marker.userStatus = user.status;
             marker.setPopupContent(this.createPopupContent(user));
             console.log('🔄 Обновлен маркер пользователя:', user.name);
         } else {
-            // Создаем новый маркер
             const marker = L.marker(user.position, {
                 icon: this.createUserIcon(user.status)
             });
             
-            // Настраиваем попап
             marker.bindPopup(this.createPopupContent(user), {
                 maxWidth: 200,
                 className: 'user-popup-container'
             });
             
-            // Сохраняем данные для фильтрации
             marker.userStatus = user.status;
             marker.userId = user.id;
             
-            // Добавляем в кластер
             this.markerClusterGroup.addLayer(marker);
             this.userMarkers.set(user.id, marker);
             
             console.log('✅ Создан новый маркер для пользователя:', user.name);
         }
         
-        // Применяем фильтр
         this.applyActivityFilter(this.filteredStatuses);
     }
     
@@ -227,29 +155,45 @@ class MarkerManager {
         
         this.users.delete(userId);
         
-        // Обновляем счетчик
         const userCount = Array.from(this.users.keys()).filter(id => id !== this.currentUserId).length;
         if (this.app.uiManager) {
             this.app.uiManager.updateUsersCount(userCount);
         }
     }
     
+    // ИСПРАВЛЕНО: Правильное обновление статуса с принудительным обновлением иконки
     updateUserStatus(userId, status) {
         console.log('🔄 Обновление статуса пользователя:', userId, status);
         
         const user = this.users.get(userId);
         if (user) {
+            // Обновляем статус в данных
             user.status = status;
             
             if (this.userMarkers.has(userId)) {
                 const marker = this.userMarkers.get(userId);
-                marker.setIcon(this.createUserIcon(status));
+                
+                // ИСПРАВЛЕНО: Принудительно создаем новую иконку
+                const newIcon = this.createUserIcon(status);
+                marker.setIcon(newIcon);
                 marker.userStatus = status;
+                
+                // Обновляем контент попапа
                 marker.setPopupContent(this.createPopupContent(user));
                 
-                // Применяем фильтр
+                // Применяем фильтр для обновления отображения
                 this.applyActivityFilter(this.filteredStatuses);
+                
+                console.log('✅ Статус и иконка пользователя обновлены:', user.name, status);
+                
+                // Показываем уведомление об изменении статуса
+                this.app.notificationManager.showNotification(
+                    `${user.name} сменил статус на ${this.getStatusText(status)}`, 
+                    'info'
+                );
             }
+        } else {
+            console.warn('⚠️ Пользователь не найден для обновления статуса:', userId);
         }
     }
     
@@ -265,12 +209,13 @@ class MarkerManager {
         }
     }
     
+    // ИСПРАВЛЕНО: Создание иконки с уникальным классом для каждого статуса
     createUserIcon(status) {
         const iconHtml = this.getUserIcon(status);
         const iconSize = [30, 30];
         
         return L.divIcon({
-            className: `user-marker user-${status}`,
+            className: `user-marker user-${status} marker-${status}-${Date.now()}`, // Уникальный класс
             html: iconHtml,
             iconSize: iconSize,
             iconAnchor: [15, 15]
@@ -281,7 +226,7 @@ class MarkerManager {
         return this.users.get(userId);
     }
     
-    // ИСПРАВЛЕНО: Иконки для новых статусов
+    // ИСПРАВЛЕНО: Иконки для статусов
     getUserIcon(status) {
         const iconStyle = 'font-size: 16px; color: white;';
         switch (status) {
@@ -298,7 +243,6 @@ class MarkerManager {
         }
     }
     
-    // ИСПРАВЛЕНО: Текст для новых статусов
     getStatusText(status) {
         switch (status) {
             case CONFIG.STATUSES.AUTO:
@@ -335,19 +279,16 @@ class MarkerManager {
         this.filteredStatuses = statuses;
         console.log('🔍 Применение фильтра:', statuses);
         
-        // Сохраняем текущий вид карты
         const currentCenter = this.app.mapManager.map.getCenter();
         const currentZoom = this.app.mapManager.map.getZoom();
         
         if (statuses.includes('all')) {
-            // Показать все маркеры
             this.userMarkers.forEach(marker => {
                 if (!this.markerClusterGroup.hasLayer(marker)) {
                     this.markerClusterGroup.addLayer(marker);
                 }
             });
         } else {
-            // Фильтровать по статусам
             this.userMarkers.forEach(marker => {
                 if (statuses.includes(marker.userStatus)) {
                     if (!this.markerClusterGroup.hasLayer(marker)) {
@@ -361,10 +302,8 @@ class MarkerManager {
             });
         }
         
-        // Восстанавливаем вид карты
         this.app.mapManager.map.setView(currentCenter, currentZoom);
         
-        // Подсчитываем видимые маркеры
         let visibleCount = 0;
         this.userMarkers.forEach(marker => {
             if (this.markerClusterGroup.hasLayer(marker)) {

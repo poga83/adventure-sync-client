@@ -19,7 +19,6 @@ class ConnectionManager {
 
         console.log('🔄 Тестирование подключения к Render серверу...');
         
-        // ИСПРАВЛЕНО: Тестируем HTTPS соединение
         const serverAvailable = await CONFIG.testServerConnection();
         if (!serverAvailable) {
             console.error('❌ Сервер Render недоступен');
@@ -31,7 +30,6 @@ class ConnectionManager {
         this.updateConnectionStatus('connecting');
 
         try {
-            // ИСПРАВЛЕНО: Конфигурация для HTTPS Render сервера
             this.socket = io(CONFIG.SERVER_URL, {
                 transports: ['websocket', 'polling'],
                 timeout: CONFIG.SOCKET.TIMEOUT,
@@ -42,7 +40,7 @@ class ConnectionManager {
                 randomizationFactor: 0.5,
                 forceNew: CONFIG.SOCKET.FORCE_NEW,
                 autoConnect: true,
-                secure: CONFIG.SOCKET.SECURE, // Для HTTPS
+                secure: CONFIG.SOCKET.SECURE,
                 upgrade: CONFIG.SOCKET.UPGRADE,
                 rememberUpgrade: true,
                 pingTimeout: CONFIG.SOCKET.PING_TIMEOUT,
@@ -65,16 +63,13 @@ class ConnectionManager {
     }
 
     setupSocketEvents() {
-        // Подтверждение подключения
         this.socket.on('connectionConfirmed', (data) => {
             console.log('✅ Подтверждение подключения от Render сервера:', data);
         });
 
-        // Успешное подключение
         this.socket.on('connect', () => {
             console.log('✅ Подключен к Render серверу, ID:', this.socket.id);
             console.log('🔗 Транспорт:', this.socket.io.engine.transport.name);
-            console.log('🌐 URL:', CONFIG.SERVER_URL);
             
             this.connectionAttempts = 0;
             this.updateConnectionStatus('connected');
@@ -91,12 +86,10 @@ class ConnectionManager {
             this.syncOfflineChanges();
         });
         
-        // Изменение транспорта
         this.socket.io.on('upgrade', () => {
             console.log('🔄 Обновление транспорта на:', this.socket.io.engine.transport.name);
         });
         
-        // Отключение
         this.socket.on('disconnect', (reason) => {
             console.log('❌ Отключен от Render сервера:', reason);
             this.updateConnectionStatus('disconnected');
@@ -113,30 +106,21 @@ class ConnectionManager {
             this.app.notificationManager.showNotification(message, 'error');
         });
 
-        // ИСПРАВЛЕНО: Расширенная обработка ошибок для Render
         this.socket.on('connect_error', (error) => {
             console.error('❌ Ошибка подключения к Render:', error);
             this.connectionAttempts++;
             
             let errorMessage = 'Ошибка подключения к серверу Adventure Sync';
-            let errorDetails = '';
             
             if (error.message) {
                 if (error.message.includes('timeout')) {
                     errorMessage = 'Превышено время ожидания подключения к Render';
-                    errorDetails = 'Сервер может быть в режиме "сна" - повторите попытку';
                 } else if (error.message.includes('CORS')) {
                     errorMessage = 'Ошибка CORS политики';
-                    errorDetails = 'Проблема с настройками безопасности сервера';
                 } else if (error.message.includes('404')) {
                     errorMessage = 'Сервер на Render не найден';
-                    errorDetails = 'Проверьте правильность URL сервера';
                 } else if (error.message.includes('503')) {
                     errorMessage = 'Сервер Render временно недоступен';
-                    errorDetails = 'Попробуйте подключиться через несколько минут';
-                } else if (error.message.includes('polling')) {
-                    errorMessage = 'Ошибка polling транспорта';
-                    errorDetails = 'Проблема с fallback соединением';
                 }
             }
             
@@ -147,10 +131,6 @@ class ConnectionManager {
                 this.updateConnectionStatus('connecting');
                 const attemptMessage = `${errorMessage} (${this.connectionAttempts}/${this.maxConnectionAttempts})`;
                 this.app.notificationManager.showNotification(attemptMessage, 'warning');
-                
-                if (errorDetails) {
-                    console.warn(`💡 Рекомендация: ${errorDetails}`);
-                }
             }
         });
 
@@ -175,7 +155,6 @@ class ConnectionManager {
             }
         });
         
-        // ИСПРАВЛЕНО: Правильная обработка изменения статуса
         this.socket.on('userStatusChanged', (data) => {
             console.log('🔄 Получено изменение статуса пользователя:', data);
             if (data.userId && data.status) {
@@ -224,10 +203,8 @@ class ConnectionManager {
         
         if (error.message && error.message.includes('timeout')) {
             suggestions.push('Сервер может находиться в режиме "сна" - подождите 1-2 минуты');
-            suggestions.push('Render бесплатные сервисы засыпают при отсутствии активности');
         } else if (error.message && error.message.includes('503')) {
             suggestions.push('Сервер Render временно недоступен');
-            suggestions.push('Проверьте статус Render на https://status.render.com');
         } else {
             suggestions.push('Проверьте подключение к интернету');
             suggestions.push('Возможно, сервер перезапускается');
@@ -241,6 +218,7 @@ class ConnectionManager {
         this.handleDisconnection();
     }
 
+    // ИСПРАВЛЕНО: Обработка оффлайн режима без скрытия никнейма
     updateConnectionStatus(status) {
         const statusElement = document.getElementById('connectionStatus');
         if (statusElement) {
@@ -277,6 +255,18 @@ class ConnectionManager {
                     break;
             }
         }
+        
+        // ИСПРАВЛЕНО: Не скрываем никнейм в оффлайн режиме
+        const userNickname = document.getElementById('userNickname');
+        if (userNickname) {
+            if (status === 'offline') {
+                userNickname.style.opacity = '0.6';
+                userNickname.title = 'Оффлайн режим - изменения будут синхронизированы при подключении';
+            } else {
+                userNickname.style.opacity = '1';
+                userNickname.title = '';
+            }
+        }
     }
     
     // Остальные методы остаются без изменений...
@@ -304,13 +294,13 @@ class ConnectionManager {
         return null;
     }
     
-    // ИСПРАВЛЕНО: Методы для отправки данных с проверкой соединения
     updateUserStatus(status) {
         console.log('📤 Отправляем обновление статуса:', status);
         if (this.socket && this.socket.connected) {
             this.socket.emit('updateStatus', status);
         } else {
             this.offlineQueue.push({ type: 'updateStatus', data: status });
+            this.app.notificationManager.showNotification('Статус будет обновлен при подключении', 'info');
         }
     }
     

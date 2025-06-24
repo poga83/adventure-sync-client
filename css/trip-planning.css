@@ -1,4 +1,4 @@
-/* Стили для планирования поездок */
+/* ИСПРАВЛЕНО: Стили для планирования поездок с адаптивностью */
 .trip-planning-btn {
     background: var(--accent-teal);
     border: none;
@@ -13,6 +13,8 @@
     justify-content: center;
     font-size: 1rem;
     margin-right: 8px;
+    z-index: 1000; /* ИСПРАВЛЕНО: Высокий z-index */
+    position: relative;
 }
 
 .trip-planning-btn:hover {
@@ -32,6 +34,7 @@
     align-items: center;
     justify-content: center;
     backdrop-filter: blur(10px);
+    overflow: hidden; /* ИСПРАВЛЕНО: Предотвращение прокрутки */
 }
 
 .trip-planning-panel.hidden {
@@ -45,6 +48,8 @@
     padding: 20px 24px;
     background: var(--graphite-700);
     border-bottom: 1px solid var(--graphite-600);
+    position: relative;
+    z-index: 10001;
 }
 
 .trip-panel-header h3 {
@@ -65,9 +70,10 @@
     box-shadow: var(--shadow-xl);
     border: 1px solid var(--graphite-600);
     overflow: hidden;
+    position: relative; /* ИСПРАВЛЕНО: Относительное позиционирование */
 }
 
-/* НОВЫЙ: Модальное окно карты для выбора точек */
+/* ИСПРАВЛЕНО: Модальное окно карты */
 .waypoint-map-modal {
     position: fixed;
     top: 0;
@@ -80,6 +86,7 @@
     align-items: center;
     justify-content: center;
     backdrop-filter: blur(15px);
+    overflow: hidden;
 }
 
 .waypoint-map-modal.hidden {
@@ -97,6 +104,7 @@
     box-shadow: var(--shadow-xl);
     border: 1px solid var(--graphite-600);
     overflow: hidden;
+    position: relative;
 }
 
 .map-modal-header {
@@ -106,6 +114,8 @@
     padding: 20px 24px;
     background: var(--graphite-700);
     border-bottom: 1px solid var(--graphite-600);
+    z-index: 10002;
+    position: relative;
 }
 
 .map-modal-header h3 {
@@ -120,24 +130,30 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    position: relative;
 }
 
 .waypoint-map-container {
     flex: 1;
     min-height: 400px;
     position: relative;
+    width: 100%;
+    overflow: hidden;
 }
 
 .map-modal-controls {
     padding: 20px 24px;
     background: var(--graphite-700);
     border-top: 1px solid var(--graphite-600);
+    z-index: 10002;
+    position: relative;
 }
 
 .search-controls {
     display: flex;
     gap: 12px;
     margin-bottom: 16px;
+    width: 100%;
 }
 
 .location-search-input {
@@ -148,6 +164,7 @@
     border-radius: var(--border-radius);
     color: var(--text-primary);
     font-size: 1rem;
+    min-width: 0; /* ИСПРАВЛЕНО: Предотвращение переполнения */
 }
 
 .location-search-input:focus {
@@ -167,6 +184,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    z-index: 1000;
+    position: relative;
+    flex-shrink: 0; /* ИСПРАВЛЕНО: Не сжимается */
 }
 
 .search-btn:hover {
@@ -178,6 +198,7 @@
     display: flex;
     justify-content: flex-end;
     gap: 12px;
+    flex-wrap: wrap; /* ИСПРАВЛЕНО: Перенос на новую строку в мобильной версии */
 }
 
 .temp-waypoint-marker {
@@ -197,10 +218,11 @@
     100% { transform: scale(1); }
 }
 
-/* Остальные стили остаются без изменений... */
 .trips-section {
     padding: 20px 24px;
     border-bottom: 1px solid var(--graphite-600);
+    overflow-y: auto;
+    max-height: 200px; /* ИСПРАВЛЕНО: Ограничение высоты */
 }
 
 .section-header {
@@ -208,6 +230,8 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 16px;
+    flex-wrap: wrap; /* ИСПРАВЛЕНО: Перенос в мобильной версии */
+    gap: 8px;
 }
 
 .section-header h4 {
@@ -229,6 +253,9 @@
     gap: 6px;
     font-size: 0.875rem;
     font-weight: 500;
+    z-index: 1000; /* ИСПРАВЛЕНО: Высокий z-index */
+    position: relative;
+    white-space: nowrap; /* ИСПРАВЛЕНО: Не переносить текст */
 }
 
 .action-btn:hover {
@@ -272,6 +299,8 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 16px;
+    max-height: 300px; /* ИСПРАВЛЕНО: Ограничение высоты */
+    overflow-y: auto;
 }
 
 .trip-item {
@@ -280,6 +309,7 @@
     border-radius: var(--border-radius);
     padding: 16px;
     transition: var(--transition);
+    min-height: 120px; /* ИСПРАВЛЕНО: Минимальная высота */
 }
 
 .trip-item:hover {
@@ -291,6 +321,7 @@
     color: var(--text-primary);
     font-size: 1rem;
     margin-bottom: 8px;
+    word-wrap: break-word; /* ИСПРАВЛЕНО: Перенос длинных названий */
 }
 
 .trip-dates {
@@ -309,6 +340,7 @@
     display: flex;
     gap: 8px;
     margin-top: 12px;
+    flex-wrap: wrap; /* ИСПРАВЛЕНО: Перенос кнопок */
 }
 
 .no-trips {
@@ -322,6 +354,7 @@
     flex: 1;
     overflow-y: auto;
     padding: 24px;
+    min-height: 0; /* ИСПРАВЛЕНО: Корректная работа flex */
 }
 
 .trip-editor.hidden {
@@ -333,6 +366,7 @@
     align-items: center;
     gap: 16px;
     margin-bottom: 24px;
+    flex-wrap: wrap; /* ИСПРАВЛЕНО: Перенос в мобильной версии */
 }
 
 .editor-header input {
@@ -344,11 +378,13 @@
     color: var(--text-primary);
     font-size: 1.125rem;
     font-weight: 600;
+    min-width: 200px; /* ИСПРАВЛЕНО: Минимальная ширина */
 }
 
 .editor-actions {
     display: flex;
     gap: 8px;
+    flex-wrap: wrap; /* ИСПРАВЛЕНО: Перенос кнопок */
 }
 
 .trip-details {
@@ -377,6 +413,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
+    flex-wrap: wrap; /* ИСПРАВЛЕНО: Перенос в мобильной версии */
 }
 
 .date-range input {
@@ -386,6 +423,7 @@
     border: 1px solid var(--graphite-500);
     border-radius: var(--border-radius-sm);
     color: var(--text-primary);
+    min-width: 120px; /* ИСПРАВЛЕНО: Минимальная ширина */
 }
 
 .date-range span {
@@ -419,6 +457,7 @@
     color: var(--text-primary);
     resize: vertical;
     font-family: inherit;
+    box-sizing: border-box; /* ИСПРАВЛЕНО: Включение padding в ширину */
 }
 
 .trip-days {
@@ -433,6 +472,8 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 16px;
+    flex-wrap: wrap; /* ИСПРАВЛЕНО: Перенос в мобильной версии */
+    gap: 8px;
 }
 
 .days-header h4 {
@@ -445,6 +486,8 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
+    max-height: 400px; /* ИСПРАВЛЕНО: Ограничение высоты */
+    overflow-y: auto;
 }
 
 .trip-day {
@@ -461,6 +504,8 @@
     padding: 12px 16px;
     background: var(--graphite-500);
     border-bottom: 1px solid var(--graphite-400);
+    flex-wrap: wrap; /* ИСПРАВЛЕНО: Перенос в мобильной версии */
+    gap: 8px;
 }
 
 .day-info h5 {
@@ -478,6 +523,7 @@
     font-weight: 500;
     width: 100%;
     padding: 2px;
+    min-width: 150px; /* ИСПРАВЛЕНО: Минимальная ширина */
 }
 
 .day-title:focus {
@@ -488,6 +534,7 @@
 .day-actions {
     display: flex;
     gap: 6px;
+    flex-wrap: wrap; /* ИСПРАВЛЕНО: Перенос кнопок */
 }
 
 .day-content {
@@ -496,6 +543,8 @@
 
 .waypoints-list {
     margin-bottom: 12px;
+    max-height: 200px; /* ИСПРАВЛЕНО: Ограничение высоты */
+    overflow-y: auto;
 }
 
 .waypoint-item {
@@ -506,15 +555,18 @@
     background: var(--graphite-700);
     border-radius: var(--border-radius-sm);
     margin-bottom: 8px;
+    flex-wrap: wrap; /* ИСПРАВЛЕНО: Перенос в мобильной версии */
 }
 
 .waypoint-marker {
     color: var(--accent-cyan);
     font-size: 1rem;
+    flex-shrink: 0; /* ИСПРАВЛЕНО: Не сжимается */
 }
 
 .waypoint-content {
     flex: 1;
+    min-width: 150px; /* ИСПРАВЛЕНО: Минимальная ширина */
 }
 
 .waypoint-name {
@@ -537,12 +589,15 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap; /* ИСПРАВЛЕНО: Перенос в мобильной версии */
+    gap: 4px;
 }
 
 .coordinates {
     color: var(--text-secondary);
     font-size: 0.75rem;
     font-family: monospace;
+    word-break: break-all; /* ИСПРАВЛЕНО: Перенос длинных координат */
 }
 
 .remove-waypoint {
@@ -554,6 +609,7 @@
     padding: 4px;
     border-radius: 2px;
     transition: var(--transition);
+    flex-shrink: 0; /* ИСПРАВЛЕНО: Не сжимается */
 }
 
 .remove-waypoint:hover {
@@ -572,6 +628,7 @@
     resize: vertical;
     font-family: inherit;
     font-size: 0.875rem;
+    box-sizing: border-box; /* ИСПРАВЛЕНО: Включение padding в ширину */
 }
 
 .trip-collaborators {
@@ -585,6 +642,8 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 16px;
+    flex-wrap: wrap; /* ИСПРАВЛЕНО: Перенос в мобильной версии */
+    gap: 8px;
 }
 
 .collaborators-header h4 {
@@ -645,6 +704,8 @@
     border: 1px solid var(--graphite-600);
     max-width: 400px;
     width: 90%;
+    max-height: 80vh; /* ИСПРАВЛЕНО: Ограничение высоты */
+    overflow-y: auto;
 }
 
 .export-modal .modal-header {
@@ -687,6 +748,8 @@
     align-items: center;
     gap: 8px;
     text-align: left;
+    z-index: 1000;
+    position: relative;
 }
 
 .export-btn:hover {
@@ -704,20 +767,29 @@
     margin-bottom: 4px;
 }
 
-/* Адаптивность */
+/* ИСПРАВЛЕНО: Адаптивность для мобильных устройств */
 @media (max-width: 768px) {
+    body, html {
+        overflow-x: hidden !important; /* ИСПРАВЛЕНО: Принудительное скрытие */
+    }
+    
     .trip-panel-content {
-        width: 95%;
-        height: 90%;
+        width: 95vw; /* ИСПРАВЛЕНО: Используем vw вместо % */
+        height: 90vh;
+        max-width: 100%;
+        overflow-x: hidden;
+        position: relative;
     }
     
     .map-modal-content {
-        width: 95%;
-        height: 90%;
+        width: 95vw; /* ИСПРАВЛЕНО: Используем vw */
+        height: 90vh;
+        max-width: 100%;
+        overflow-x: hidden;
     }
     
     .trip-meta {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr; /* ИСПРАВЛЕНО: Одна колонка в мобильной версии */
     }
     
     .editor-header {
@@ -727,17 +799,163 @@
     
     .editor-actions {
         justify-content: center;
+        width: 100%;
     }
     
     .trips-list {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr; /* ИСПРАВЛЕНО: Одна колонка */
     }
     
     .search-controls {
-        flex-direction: column;
+        flex-direction: column; /* ИСПРАВЛЕНО: Вертикальное расположение в мобильной версии */
     }
     
     .modal-actions {
         justify-content: center;
+        width: 100%;
     }
+    
+    .day-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+    
+    .day-actions {
+        justify-content: center;
+    }
+    
+    .section-header {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
+    }
+    
+    .collaborators-header {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
+    }
+    
+    .days-header {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
+    }
+    
+    /* ИСПРАВЛЕНО: Адаптация полей ввода */
+    .location-search-input,
+    .day-title,
+    .waypoint-name {
+        min-width: 0;
+        width: 100%;
+    }
+    
+    .date-range {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .date-range input {
+        min-width: 0;
+        width: 100%;
+    }
+    
+    /* ИСПРАВЛЕНО: Адаптация waypoint-item */
+    .waypoint-item {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
+    }
+    
+    .waypoint-meta {
+        justify-content: center;
+        text-align: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .trip-panel-content,
+    .map-modal-content {
+        width: 98vw; /* ИСПРАВЛЕНО: Почти полная ширина на маленьких экранах */
+        height: 95vh;
+    }
+    
+    .action-btn.small {
+        padding: 4px 8px;
+        font-size: 0.7rem;
+    }
+    
+    .trip-panel-header,
+    .map-modal-header,
+    .map-modal-controls {
+        padding: 12px 16px;
+    }
+    
+    .trip-editor,
+    .trips-section {
+        padding: 16px;
+    }
+    
+    .trip-details,
+    .trip-days,
+    .trip-collaborators {
+        padding: 16px;
+        margin-bottom: 16px;
+    }
+    
+    .day-content {
+        padding: 12px;
+    }
+    
+    /* ИСПРАВЛЕНО: Уменьшение отступов для очень маленьких экранов */
+    .editor-header input {
+        font-size: 1rem;
+        padding: 10px 12px;
+    }
+    
+    .action-btn {
+        padding: 6px 10px;
+        font-size: 0.8rem;
+    }
+    
+    .waypoint-item {
+        padding: 6px;
+    }
+}
+
+/* ИСПРАВЛЕНО: Дополнительные стили для предотвращения горизонтальной прокрутки */
+* {
+    box-sizing: border-box;
+}
+
+.trip-planning-panel *,
+.waypoint-map-modal * {
+    max-width: 100%;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+/* Скроллбары для модальных окон */
+.trip-editor::-webkit-scrollbar,
+.days-list::-webkit-scrollbar,
+.waypoints-list::-webkit-scrollbar,
+.trips-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.trip-editor::-webkit-scrollbar-track,
+.days-list::-webkit-scrollbar-track,
+.waypoints-list::-webkit-scrollbar-track,
+.trips-list::-webkit-scrollbar-track {
+    background: var(--graphite-700);
+    border-radius: 3px;
+}
+
+.trip-editor::-webkit-scrollbar-thumb,
+.days-list::-webkit-scrollbar-thumb,
+.waypoints-list::-webkit-scrollbar-thumb,
+.trips-list::-webkit-scrollbar-thumb {
+    background: var(--graphite-500);
+    border-radius: 3px;
 }

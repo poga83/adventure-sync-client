@@ -17,13 +17,13 @@ class ConnectionManager {
             return true;
         }
 
-        console.log('🔄 Тестирование подключения к серверу...');
+        console.log('🔄 Тестирование подключения к Render серверу...');
         
-        // ИСПРАВЛЕНО: Тестируем доступность сервера перед подключением
+        // ИСПРАВЛЕНО: Тестируем HTTPS соединение
         const serverAvailable = await CONFIG.testServerConnection();
         if (!serverAvailable) {
-            console.error('❌ Сервер недоступен по всем адресам');
-            this.handleConnectionError(new Error('Сервер недоступен'));
+            console.error('❌ Сервер Render недоступен');
+            this.handleConnectionError(new Error('Сервер Adventure Sync на Render недоступен'));
             return false;
         }
 
@@ -31,24 +31,26 @@ class ConnectionManager {
         this.updateConnectionStatus('connecting');
 
         try {
-            // ИСПРАВЛЕНО: Улучшенная конфигурация Socket.IO с детальными настройками
+            // ИСПРАВЛЕНО: Конфигурация для HTTPS Render сервера
             this.socket = io(CONFIG.SERVER_URL, {
-                transports: ['websocket', 'polling'], // Поддержка обоих транспортов
+                transports: ['websocket', 'polling'],
                 timeout: CONFIG.SOCKET.TIMEOUT,
                 reconnection: true,
                 reconnectionAttempts: this.maxConnectionAttempts,
                 reconnectionDelay: this.reconnectDelay,
-                reconnectionDelayMax: 5000,
+                reconnectionDelayMax: 10000,
                 randomizationFactor: 0.5,
-                forceNew: false,
+                forceNew: CONFIG.SOCKET.FORCE_NEW,
                 autoConnect: true,
-                withCredentials: true,
-                upgrade: true,
-                rememberUpgrade: false,
+                secure: CONFIG.SOCKET.SECURE, // Для HTTPS
+                upgrade: CONFIG.SOCKET.UPGRADE,
+                rememberUpgrade: true,
                 pingTimeout: CONFIG.SOCKET.PING_TIMEOUT,
                 pingInterval: CONFIG.SOCKET.PING_INTERVAL,
+                withCredentials: true,
                 extraHeaders: {
-                    'Access-Control-Allow-Origin': window.location.origin
+                    'Access-Control-Allow-Origin': window.location.origin,
+                    'Access-Control-Allow-Credentials': 'true'
                 }
             });
             
@@ -63,30 +65,29 @@ class ConnectionManager {
     }
 
     setupSocketEvents() {
-        // ИСПРАВЛЕНО: Подтверждение подключения от сервера
+        // Подтверждение подключения
         this.socket.on('connectionConfirmed', (data) => {
-            console.log('✅ Подтверждение подключения от сервера:', data);
+            console.log('✅ Подтверждение подключения от Render сервера:', data);
         });
 
         // Успешное подключение
         this.socket.on('connect', () => {
-            console.log('✅ Подключен к серверу, ID:', this.socket.id);
+            console.log('✅ Подключен к Render серверу, ID:', this.socket.id);
             console.log('🔗 Транспорт:', this.socket.io.engine.transport.name);
+            console.log('🌐 URL:', CONFIG.SERVER_URL);
             
             this.connectionAttempts = 0;
             this.updateConnectionStatus('connected');
-            this.app.notificationManager.showNotification('Подключено к серверу', 'success');
+            this.app.notificationManager.showNotification('Подключено к серверу Adventure Sync', 'success');
             
-            // Отправляем информацию о пользователе
             const userData = this.getUserData();
             if (userData) {
-                console.log('📤 Отправляем данные пользователя:', userData);
+                console.log('📤 Отправляем данные пользователя на сервер...');
                 this.socket.emit('userConnected', userData);
                 this.socket.emit('getUsers');
                 this.socket.emit('getGroupChatHistory');
             }
             
-            // Синхронизируем оффлайн изменения
             this.syncOfflineChanges();
         });
         
@@ -97,78 +98,65 @@ class ConnectionManager {
         
         // Отключение
         this.socket.on('disconnect', (reason) => {
-            console.log('❌ Отключен от сервера:', reason);
+            console.log('❌ Отключен от Render сервера:', reason);
             this.updateConnectionStatus('disconnected');
             
             let message = 'Отключено от сервера';
             if (reason === 'io server disconnect') {
-                message = 'Сервер принудительно разорвал соединение';
+                message = 'Сервер разорвал соединение';
             } else if (reason === 'transport close') {
                 message = 'Потеря соединения с сервером';
+            } else if (reason === 'ping timeout') {
+                message = 'Превышено время ожидания ответа сервера';
             }
             
             this.app.notificationManager.showNotification(message, 'error');
         });
 
-        // ИСПРАВЛЕНО: Детальная обработка ошибок подключения
+        // ИСПРАВЛЕНО: Расширенная обработка ошибок для Render
         this.socket.on('connect_error', (error) => {
-            console.error('❌ Ошибка подключения:', error);
+            console.error('❌ Ошибка подключения к Render:', error);
             this.connectionAttempts++;
             
-            let errorMessage = 'Ошибка подключения к серверу';
+            let errorMessage = 'Ошибка подключения к серверу Adventure Sync';
             let errorDetails = '';
             
-            // Определяем тип ошибки для более точного сообщения
             if (error.message) {
                 if (error.message.includes('timeout')) {
-                    errorMessage = 'Превышено время ожидания подключения';
-                    errorDetails = 'Проверьте, что сервер запущен';
+                    errorMessage = 'Превышено время ожидания подключения к Render';
+                    errorDetails = 'Сервер может быть в режиме "сна" - повторите попытку';
                 } else if (error.message.includes('CORS')) {
                     errorMessage = 'Ошибка CORS политики';
                     errorDetails = 'Проблема с настройками безопасности сервера';
                 } else if (error.message.includes('404')) {
-                    errorMessage = 'Сервер не найден (404)';
-                    errorDetails = 'Убедитесь, что сервер запущен на правильном порту';
-                } else if (error.message.includes('xhr poll error')) {
-                    errorMessage = 'Ошибка XHR polling';
-                    errorDetails = 'Проблема с транспортом данных';
-                } else if (error.message.includes('ECONNREFUSED')) {
-                    errorMessage = 'Соединение отклонено';
-                    errorDetails = 'Сервер не принимает подключения';
+                    errorMessage = 'Сервер на Render не найден';
+                    errorDetails = 'Проверьте правильность URL сервера';
+                } else if (error.message.includes('503')) {
+                    errorMessage = 'Сервер Render временно недоступен';
+                    errorDetails = 'Попробуйте подключиться через несколько минут';
+                } else if (error.message.includes('polling')) {
+                    errorMessage = 'Ошибка polling транспорта';
+                    errorDetails = 'Проблема с fallback соединением';
                 }
             }
             
             if (this.connectionAttempts >= this.maxConnectionAttempts) {
-                console.error(`❌ Исчерпаны попытки подключения (${this.maxConnectionAttempts})`);
+                console.error(`❌ Исчерпаны попытки подключения к Render (${this.maxConnectionAttempts})`);
                 this.handleConnectionError(error);
             } else {
                 this.updateConnectionStatus('connecting');
                 const attemptMessage = `${errorMessage} (${this.connectionAttempts}/${this.maxConnectionAttempts})`;
                 this.app.notificationManager.showNotification(attemptMessage, 'warning');
                 
-                // Показываем детали ошибки в консоли
                 if (errorDetails) {
                     console.warn(`💡 Рекомендация: ${errorDetails}`);
                 }
             }
         });
 
-        // Принудительное отключение с попыткой переподключения
-        this.socket.on('disconnect', (reason) => {
-            if (reason === 'io server disconnect') {
-                // Сервер принудительно отключил клиента, пытаемся переподключиться
-                console.log('🔄 Попытка переподключения после принудительного отключения...');
-                setTimeout(() => {
-                    if (this.socket && !this.socket.connected) {
-                        this.socket.connect();
-                    }
-                }, this.reconnectDelay);
-            }
-        });
-        
         // Обработчики событий от сервера
         this.socket.on('users', (users) => {
-            console.log('📥 Получен список пользователей:', users.length);
+            console.log('📥 Получен список пользователей с сервера:', users.length);
             this.app.markerManager.updateUsers(users);
         });
         
@@ -187,13 +175,18 @@ class ConnectionManager {
             }
         });
         
+        // ИСПРАВЛЕНО: Правильная обработка изменения статуса
         this.socket.on('userStatusChanged', (data) => {
-            console.log('🔄 Статус пользователя изменен:', data);
-            this.app.markerManager.updateUserStatus(data.userId, data.status);
+            console.log('🔄 Получено изменение статуса пользователя:', data);
+            if (data.userId && data.status) {
+                this.app.markerManager.updateUserStatus(data.userId, data.status);
+            }
         });
         
         this.socket.on('userPositionChanged', (data) => {
-            this.app.markerManager.updateUserPosition(data.userId, data.position);
+            if (data.userId && data.position) {
+                this.app.markerManager.updateUserPosition(data.userId, data.position);
+            }
         });
         
         this.socket.on('groupMessage', (message) => {
@@ -216,7 +209,6 @@ class ConnectionManager {
             this.app.chatManager.setPrivateChatHistory(data.userId, data.messages);
         });
 
-        // Обработка общих ошибок
         this.socket.on('error', (error) => {
             console.error('❌ Ошибка Socket.IO:', error);
             this.app.notificationManager.showNotification(`Ошибка соединения: ${error.message || 'Неизвестная ошибка'}`, 'error');
@@ -224,25 +216,21 @@ class ConnectionManager {
     }
 
     handleConnectionError(error) {
-        console.error('❌ Критическая ошибка подключения:', error);
+        console.error('❌ Критическая ошибка подключения к Render:', error);
         this.updateConnectionStatus('offline');
         
-        let errorMessage = 'Не удалось подключиться к серверу Adventure Sync.';
+        let errorMessage = 'Не удалось подключиться к серверу Adventure Sync на Render.';
         let suggestions = [];
         
-        // Анализируем ошибку и даем рекомендации
-        if (error.message && error.message.includes('ECONNREFUSED')) {
-            suggestions.push('Убедитесь, что сервер запущен на порту 3000');
-            suggestions.push('Проверьте команду: npm start в папке adventure-sync-server');
-        } else if (error.message && error.message.includes('CORS')) {
-            suggestions.push('Проверьте CORS настройки сервера');
-            suggestions.push('Убедитесь, что клиент запущен с правильного домена');
-        } else if (error.message && error.message.includes('timeout')) {
-            suggestions.push('Проверьте подключение к интернету');
-            suggestions.push('Попробуйте перезапустить сервер');
+        if (error.message && error.message.includes('timeout')) {
+            suggestions.push('Сервер может находиться в режиме "сна" - подождите 1-2 минуты');
+            suggestions.push('Render бесплатные сервисы засыпают при отсутствии активности');
+        } else if (error.message && error.message.includes('503')) {
+            suggestions.push('Сервер Render временно недоступен');
+            suggestions.push('Проверьте статус Render на https://status.render.com');
         } else {
-            suggestions.push('Проверьте, что сервер Adventure Sync запущен');
-            suggestions.push('Убедитесь, что порт 3000 не заблокирован');
+            suggestions.push('Проверьте подключение к интернету');
+            suggestions.push('Возможно, сервер перезапускается');
         }
         
         const fullMessage = suggestions.length > 0 
@@ -250,8 +238,6 @@ class ConnectionManager {
             : errorMessage;
             
         this.app.notificationManager.showNotification(fullMessage, 'error');
-        
-        // Переводим в оффлайн режим
         this.handleDisconnection();
     }
 
@@ -266,9 +252,8 @@ class ConnectionManager {
             switch (status) {
                 case 'connected':
                     iconElement.className = 'fas fa-wifi';
-                    textElement.textContent = 'Подключен к серверу';
+                    textElement.textContent = 'Подключен к Render';
                     statusElement.style.opacity = '0.8';
-                    // Скрываем через 5 секунд после успешного подключения
                     setTimeout(() => {
                         if (statusElement.classList.contains('connected')) {
                             statusElement.style.opacity = '0.4';
@@ -277,12 +262,12 @@ class ConnectionManager {
                     break;
                 case 'disconnected':
                     iconElement.className = 'fas fa-exclamation-triangle';
-                    textElement.textContent = 'Переподключение...';
+                    textElement.textContent = 'Переподключение к Render...';
                     statusElement.style.opacity = '1';
                     break;
                 case 'connecting':
                     iconElement.className = 'fas fa-spinner fa-spin';
-                    textElement.textContent = 'Подключение к серверу...';
+                    textElement.textContent = 'Подключение к Render...';
                     statusElement.style.opacity = '1';
                     break;
                 case 'offline':
@@ -294,40 +279,12 @@ class ConnectionManager {
         }
     }
     
-    // Тестирование подключения к серверу
-    async testConnection() {
-        try {
-            console.log('🔍 Тестирование доступности сервера...');
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 5000);
-            
-            const response = await fetch(`${CONFIG.SERVER_URL}/api/status`, {
-                signal: controller.signal,
-                method: 'GET',
-                mode: 'cors'
-            });
-            
-            clearTimeout(timeoutId);
-            
-            if (response.ok) {
-                const data = await response.json();
-                console.log('✅ Сервер доступен:', data);
-                return true;
-            } else {
-                console.error('❌ Сервер отвечает с ошибкой:', response.status);
-                return false;
-            }
-        } catch (error) {
-            console.error('❌ Сервер недоступен:', error.message);
-            return false;
-        }
-    }
-    
+    // Остальные методы остаются без изменений...
     disconnect() {
         if (this.socket) {
             this.socket.disconnect();
             this.socket = null;
-            console.log('🔌 Соединение с сервером закрыто');
+            console.log('🔌 Соединение с Render сервером закрыто');
         }
     }
     
@@ -347,8 +304,9 @@ class ConnectionManager {
         return null;
     }
     
-    // Методы для отправки данных
+    // ИСПРАВЛЕНО: Методы для отправки данных с проверкой соединения
     updateUserStatus(status) {
+        console.log('📤 Отправляем обновление статуса:', status);
         if (this.socket && this.socket.connected) {
             this.socket.emit('updateStatus', status);
         } else {

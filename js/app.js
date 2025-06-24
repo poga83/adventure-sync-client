@@ -1,8 +1,6 @@
 class AdventureSync {
     constructor() {
-        console.log('🚀 Запуск Adventure Sync...');
-        
-        // Инициализация менеджеров в правильном порядке
+        console.log('🚀 Запуск Adventure Sync v2.1...');
         this.initializeManagers();
         this.initializeApplication();
     }
@@ -16,11 +14,14 @@ class AdventureSync {
         this.uiManager = new UIManager(this);
         this.connectionManager = new ConnectionManager(this);
         
-        // Менеджеры карты и данных (инициализируются после авторизации)
+        // Менеджеры карты и данных
         this.mapManager = new MapManager(this);
         this.markerManager = new MarkerManager(this);
         this.chatManager = new ChatManager(this);
         this.routeManager = new RouteManager(this);
+        
+        // НОВЫЙ: Менеджер планирования поездок
+        this.tripPlanningManager = new TripPlanningManager(this);
         
         console.log('✅ Менеджеры инициализированы');
     }
@@ -29,13 +30,8 @@ class AdventureSync {
         try {
             console.log('🔧 Настройка приложения...');
             
-            // Инициализируем систему авторизации
             this.authManager.initialize();
-            
-            // Делаем экземпляр доступным глобально для отладки
             window.adventureSync = this;
-            
-            // Ждем авторизации пользователя
             this.waitForAuthentication();
             
             console.log('✅ Приложение настроено');
@@ -52,7 +48,6 @@ class AdventureSync {
                 console.log('👤 Пользователь авторизован, инициализируем основные модули...');
                 this.initializeAfterAuth();
             } else {
-                // Проверяем каждые 100мс
                 setTimeout(checkAuth, 100);
             }
         };
@@ -64,10 +59,8 @@ class AdventureSync {
         try {
             console.log('🗺️ Инициализация карты...');
             
-            // ИСПРАВЛЕНО: Ждем полной загрузки DOM и CSS
             await this.waitForDOMReady();
             
-            // Инициализируем карту
             const map = this.mapManager.initialize();
             if (!map) {
                 throw new Error('Не удалось инициализировать карту');
@@ -85,13 +78,12 @@ class AdventureSync {
             console.log('🎛️ Инициализация UI...');
             this.uiManager.initialize();
             
-            // ИСПРАВЛЕНО: Подключаемся к серверу после инициализации всех модулей
-            console.log('🔌 Подключение к серверу...');
+            // ИСПРАВЛЕНО: Подключаемся к Render серверу
+            console.log('🔌 Подключение к серверу на Render...');
             await this.connectionManager.connect();
             
             console.log('✅ Все модули инициализированы');
             
-            // Показываем уведомление о готовности
             setTimeout(() => {
                 this.notificationManager.showNotification('Adventure Sync готов к работе!', 'success');
             }, 1000);
@@ -102,21 +94,19 @@ class AdventureSync {
         }
     }
     
-    // ИСПРАВЛЕНО: Ждем полной загрузки DOM и CSS
     waitForDOMReady() {
         return new Promise((resolve) => {
             if (document.readyState === 'complete') {
-                // Дополнительная задержка для загрузки CSS
-                setTimeout(resolve, 100);
+                setTimeout(resolve, 200);
             } else {
                 window.addEventListener('load', () => {
-                    setTimeout(resolve, 100);
+                    setTimeout(resolve, 200);
                 });
             }
         });
     }
     
-    // Публичные методы для взаимодействия с приложением
+    // Публичные методы
     openPrivateChat(userId, userName) {
         console.log('💬 Открытие приватного чата:', userId, userName);
         if (this.uiManager) {
@@ -136,11 +126,13 @@ class AdventureSync {
         const info = {
             version: '2.1.0',
             timestamp: new Date().toISOString(),
+            serverUrl: CONFIG.SERVER_URL,
             authenticated: this.authManager?.isAuthenticated || false,
             currentUser: this.authManager?.getCurrentUser() || null,
             connectedUsers: this.markerManager?.users?.size || 0,
             mapInitialized: this.mapManager?.mapInitialized || false,
             serverConnected: this.connectionManager?.socket?.connected || false,
+            tripsCount: this.tripPlanningManager?.trips?.size || 0,
             modules: {
                 notificationManager: !!this.notificationManager,
                 authManager: !!this.authManager,
@@ -149,7 +141,8 @@ class AdventureSync {
                 mapManager: !!this.mapManager,
                 markerManager: !!this.markerManager,
                 chatManager: !!this.chatManager,
-                routeManager: !!this.routeManager
+                routeManager: !!this.routeManager,
+                tripPlanningManager: !!this.tripPlanningManager
             }
         };
         
@@ -163,7 +156,6 @@ class AdventureSync {
         location.reload();
     }
     
-    // Методы для отладки
     enableDebugMode() {
         CONFIG.MAP.DEBUG_MODE = true;
         localStorage.debug = 'socket.io:client*';
@@ -189,20 +181,37 @@ class AdventureSync {
         }
         return false;
     }
+    
+    // НОВЫЙ: Тестирование маршрутизации
+    async testRouting() {
+        if (!this.routeManager || !this.mapManager) {
+            console.error('❌ RouteManager или MapManager не инициализированы');
+            return false;
+        }
+        
+        const moscow = [55.7558, 37.6173];
+        const spb = [59.9311, 30.3609];
+        
+        try {
+            await this.routeManager.createRoute(moscow, spb);
+            console.log('✅ Тест маршрутизации прошел успешно');
+            return true;
+        } catch (error) {
+            console.error('❌ Ошибка тестирования маршрутизации:', error);
+            return false;
+        }
+    }
 }
 
-// ИСПРАВЛЕНО: Инициализация только после полной загрузки DOM
+// Инициализация после загрузки DOM
 document.addEventListener('DOMContentLoaded', () => {
     console.log('📄 DOM загружен, инициализация Adventure Sync...');
     
     try {
-        // Создаем экземпляр приложения
         new AdventureSync();
-        
     } catch (error) {
         console.error('💥 Критическая ошибка при запуске приложения:', error);
         
-        // Показываем сообщение об ошибке пользователю
         document.body.innerHTML = `
             <div style="
                 position: fixed; 
@@ -275,6 +284,13 @@ window.testMapVisibility = () => {
 window.testServerConnection = async () => {
     if (window.adventureSync) {
         return await window.adventureSync.testServerConnection();
+    }
+    return false;
+};
+
+window.testRouting = async () => {
+    if (window.adventureSync) {
+        return await window.adventureSync.testRouting();
     }
     return false;
 };

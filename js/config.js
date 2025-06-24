@@ -1,9 +1,10 @@
 const CONFIG = {
-    // ИСПРАВЛЕНО: Используем 127.0.0.1 вместо localhost для избежания проблем с IPv6
-    SERVER_URL: 'http://127.0.0.1:3000',
+    // ИСПРАВЛЕНО: Подключение к серверу на Render
+    SERVER_URL: 'https://adventure-sync-server.onrender.com',
     
-    // Альтернативные URL для проверки подключения
+    // Альтернативные URL для тестирования
     FALLBACK_URLS: [
+        'https://adventure-sync-server.onrender.com',
         'http://localhost:3000',
         'http://127.0.0.1:3000'
     ],
@@ -13,12 +14,20 @@ const CONFIG = {
         DEFAULT_ZOOM: 10,
         TILE_LAYER: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
         ATTRIBUTION: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        
-        // Настройки для отладки карты
-        DEBUG_MODE: false, // Включить для отладки проблем с картой
-        FORCE_CANVAS: true, // Принудительное использование Canvas для лучшей производительности
+        DEBUG_MODE: false,
+        FORCE_CANVAS: true,
         MIN_ZOOM: 2,
         MAX_ZOOM: 18
+    },
+    
+    // ИСПРАВЛЕНО: Настройки для роутинга по дорогам
+    ROUTING: {
+        // Используем OpenRouteService для бесплатного роутинга
+        PROVIDER: 'openrouteservice',
+        API_KEY: '5b3ce3597851110001cf6248a1b8ed27eb8a4e9b9e8bcf0f1cc1c715', // Публичный ключ для демо
+        BASE_URL: 'https://api.openrouteservice.org/v2/directions',
+        PROFILE: 'driving-car', // driving-car, cycling-regular, foot-walking
+        FORMAT: 'geojson'
     },
     
     MARKER_CLUSTER: {
@@ -30,7 +39,6 @@ const CONFIG = {
         SHOW_COVERAGE_ON_HOVER: false
     },
     
-    // ИСПРАВЛЕНО: Новые статусы
     STATUSES: {
         AUTO: 'auto',
         MOTO: 'moto', 
@@ -41,46 +49,59 @@ const CONFIG = {
     CACHE: {
         POSITIONS_KEY: 'adventure_sync_positions',
         MESSAGES_KEY: 'adventure_sync_messages',
-        USER_KEY: 'adventure_sync_user'
+        USER_KEY: 'adventure_sync_user',
+        ROUTES_KEY: 'adventure_sync_routes',
+        TRIPS_KEY: 'adventure_sync_trips'
     },
     
-    // Настройки Socket.IO
+    // ИСПРАВЛЕНО: Настройки Socket.IO для HTTPS
     SOCKET: {
-        TIMEOUT: 10000,
+        TIMEOUT: 15000,
         RECONNECTION_ATTEMPTS: 5,
-        RECONNECTION_DELAY: 1000,
+        RECONNECTION_DELAY: 2000,
         PING_TIMEOUT: 60000,
-        PING_INTERVAL: 25000
+        PING_INTERVAL: 25000,
+        FORCE_NEW: false,
+        UPGRADE: true,
+        SECURE: true // Для HTTPS соединения
     },
     
-    // Настройки интерфейса
     UI: {
         NOTIFICATION_TIMEOUT: 5000,
-        MAP_INVALIDATE_DELAY: 200,
+        MAP_INVALIDATE_DELAY: 300,
         SIDEBAR_ANIMATION_DURATION: 300
+    },
+    
+    // НОВЫЙ: Настройки планирования поездок
+    TRIP_PLANNING: {
+        MAX_WAYPOINTS: 10,
+        MAX_DAYS: 30,
+        SUPPORTED_FORMATS: ['gpx', 'kml', 'json'],
+        AUTO_SAVE_INTERVAL: 30000 // 30 секунд
     }
 };
 
-// Функция для проверки доступности сервера
+// ИСПРАВЛЕНО: Функция для проверки доступности сервера с HTTPS
 CONFIG.testServerConnection = async function() {
     for (const url of [CONFIG.SERVER_URL, ...CONFIG.FALLBACK_URLS]) {
         try {
             const response = await fetch(`${url}/health`, {
                 method: 'GET',
-                timeout: 5000
+                timeout: 10000,
+                mode: 'cors'
             });
             if (response.ok) {
                 CONFIG.SERVER_URL = url;
+                console.log(`✅ Сервер доступен: ${url}`);
                 return true;
             }
         } catch (error) {
-            console.warn(`Сервер недоступен по адресу ${url}:`, error.message);
+            console.warn(`⚠️ Сервер недоступен по адресу ${url}:`, error.message);
         }
     }
     return false;
 };
 
-// Функция для получения оптимальных настроек карты
 CONFIG.getMapOptions = function() {
     return {
         preferCanvas: CONFIG.MAP.FORCE_CANVAS,
@@ -91,7 +112,19 @@ CONFIG.getMapOptions = function() {
     };
 };
 
-// Экспорт для использования в других модулях
+// НОВЫЙ: Функция для получения настроек роутинга
+CONFIG.getRoutingOptions = function(profile = 'driving-car') {
+    return {
+        profile: profile,
+        format: CONFIG.ROUTING.FORMAT,
+        api_key: CONFIG.ROUTING.API_KEY,
+        geometries: 'geojson',
+        overview: 'full',
+        steps: true,
+        continue_straight: false
+    };
+};
+
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = CONFIG;
 }

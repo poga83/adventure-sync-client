@@ -5,6 +5,8 @@ class TripPlanningManager {
         this.currentTrip = null;
         this.activeEditor = null;
         this.collaborators = new Map();
+        this.mapModal = null;
+        this.modalMap = null;
         this.initialize();
     }
 
@@ -12,12 +14,49 @@ class TripPlanningManager {
         console.log('🎯 Инициализация TripPlanningManager...');
         this.loadTripsFromStorage();
         this.createTripPlanningUI();
+        this.createMapModal(); // НОВЫЙ: Создаем модальное окно с картой
         this.setupEventListeners();
         console.log('✅ TripPlanningManager инициализирован');
     }
 
+    // НОВЫЙ: Создание модального окна с картой для выбора точек
+    createMapModal() {
+        this.mapModal = document.createElement('div');
+        this.mapModal.id = 'waypointMapModal';
+        this.mapModal.className = 'waypoint-map-modal hidden';
+        this.mapModal.innerHTML = `
+            <div class="map-modal-content">
+                <div class="map-modal-header">
+                    <h3><i class="fas fa-map-pin"></i> Выберите точку на карте</h3>
+                    <button id="closeMapModal" class="close-btn">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="map-modal-body">
+                    <div id="waypointMapContainer" class="waypoint-map-container"></div>
+                    <div class="map-modal-controls">
+                        <div class="search-controls">
+                            <input type="text" id="locationSearch" placeholder="Найти место..." class="location-search-input">
+                            <button id="searchLocationBtn" class="search-btn">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                        <div class="modal-actions">
+                            <button id="confirmWaypointBtn" class="action-btn success" disabled>
+                                <i class="fas fa-check"></i> Добавить точку
+                            </button>
+                            <button id="cancelWaypointBtn" class="action-btn secondary">
+                                <i class="fas fa-times"></i> Отмена
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(this.mapModal);
+    }
+
     createTripPlanningUI() {
-        // Создаем панель планирования поездок
         const tripPlanningPanel = document.createElement('div');
         tripPlanningPanel.id = 'tripPlanningPanel';
         tripPlanningPanel.className = 'trip-planning-panel hidden';
@@ -112,7 +151,7 @@ class TripPlanningManager {
 
         document.body.appendChild(tripPlanningPanel);
 
-        // Добавляем кнопку в header для открытия панели
+        // Добавляем кнопку в header
         const headerControls = document.querySelector('.header-controls');
         const tripPlanningBtn = document.createElement('button');
         tripPlanningBtn.id = 'openTripPlanningBtn';
@@ -150,6 +189,29 @@ class TripPlanningManager {
         // Добавление дня
         document.getElementById('addDayBtn').addEventListener('click', () => {
             this.addTripDay();
+        });
+
+        // НОВЫЙ: Обработчики модального окна карты
+        document.getElementById('closeMapModal').addEventListener('click', () => {
+            this.closeMapModal();
+        });
+
+        document.getElementById('confirmWaypointBtn').addEventListener('click', () => {
+            this.confirmWaypoint();
+        });
+
+        document.getElementById('cancelWaypointBtn').addEventListener('click', () => {
+            this.closeMapModal();
+        });
+
+        document.getElementById('searchLocationBtn').addEventListener('click', () => {
+            this.searchLocation();
+        });
+
+        document.getElementById('locationSearch').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.searchLocation();
+            }
         });
 
         // Автосохранение
@@ -211,10 +273,8 @@ class TripPlanningManager {
         this.currentTrip = trip;
         this.activeEditor = trip.id;
 
-        // Показываем редактор
         document.getElementById('tripEditor').classList.remove('hidden');
 
-        // Заполняем данные
         document.getElementById('tripTitle').value = trip.title;
         document.getElementById('tripDescription').value = trip.description;
         document.getElementById('tripStartDate').value = trip.startDate;
@@ -308,42 +368,171 @@ class TripPlanningManager {
         `).join('');
     }
 
+    // ИСПРАВЛЕНО: Открытие модального окна с картой для выбора точки
     addWaypoint(dayIndex) {
         if (!this.currentTrip) return;
 
-        // Включаем режим выбора точки на карте
-        this.app.notificationManager.showNotification('Кликните на карте для добавления точки маршрута');
-        
-        const originalCursor = this.app.mapManager.map.getContainer().style.cursor;
-        this.app.mapManager.map.getContainer().style.cursor = 'crosshair';
+        this.currentDayIndex = dayIndex;
+        this.selectedWaypoint = null;
 
-        const onMapClick = (e) => {
-            const waypoint = {
-                id: this.generateWaypointId(),
-                name: `Точка ${this.currentTrip.days[dayIndex].waypoints.length + 1}`,
-                lat: e.latlng.lat,
-                lng: e.latlng.lng,
-                description: '',
-                type: 'waypoint'
-            };
+        // Показываем модальное окно
+        this.mapModal.classList.remove('hidden');
+        this.app.notificationManager.showNotification('Выберите точку на карте или найдите место');
 
-            this.currentTrip.days[dayIndex].waypoints.push(waypoint);
-            this.renderTripDays();
-
-            // Добавляем маркер на карту
-            this.addWaypointMarker(waypoint, dayIndex);
-
-            // Убираем обработчик и возвращаем курсор
-            this.app.mapManager.map.off('click', onMapClick);
-            this.app.mapManager.map.getContainer().style.cursor = originalCursor;
-
-            this.app.notificationManager.showNotification('Точка маршрута добавлена');
-        };
-
-        this.app.mapManager.map.on('click', onMapClick);
+        // Инициализируем карту в модальном окне
+        setTimeout(() => {
+            this.initializeModalMap();
+        }, 100);
     }
 
-    addWaypointMarker(waypoint, dayIndex) {
+    // НОВЫЙ: Инициализация карты в модальном окне
+    initializeModalMap() {
+        const mapContainer = document.getElementById('waypointMapContainer');
+        
+        if (this.modalMap) {
+            this.modalMap.remove();
+        }
+
+        try {
+            this.modalMap = L.map('waypointMapContainer', {
+                zoomControl: true,
+                attributionControl: true
+            }).setView(CONFIG.MAP.DEFAULT_CENTER, CONFIG.MAP.DEFAULT_ZOOM);
+
+            L.tileLayer(CONFIG.MAP.TILE_LAYER, {
+                attribution: CONFIG.MAP.ATTRIBUTION,
+                maxZoom: CONFIG.MAP.MAX_ZOOM
+            }).addTo(this.modalMap);
+
+            // Если есть местоположение пользователя, центрируем на нем
+            if (this.app.mapManager.userLocationMarker) {
+                const userPos = this.app.mapManager.userLocationMarker.getLatLng();
+                this.modalMap.setView(userPos, 12);
+            }
+
+            // Добавляем обработчик клика
+            this.modalMap.on('click', (e) => {
+                this.selectWaypointLocation(e.latlng);
+            });
+
+            // Принудительно обновляем размер карты
+            setTimeout(() => {
+                this.modalMap.invalidateSize();
+            }, 200);
+
+            console.log('✅ Модальная карта инициализирована');
+
+        } catch (error) {
+            console.error('❌ Ошибка инициализации модальной карты:', error);
+            this.app.notificationManager.showNotification('Ошибка инициализации карты', 'error');
+        }
+    }
+
+    // НОВЫЙ: Выбор местоположения точки на карте
+    selectWaypointLocation(latlng) {
+        this.selectedWaypoint = {
+            lat: latlng.lat,
+            lng: latlng.lng,
+            name: `Точка ${this.currentTrip.days[this.currentDayIndex].waypoints.length + 1}`
+        };
+
+        // Удаляем предыдущий маркер
+        if (this.tempWaypointMarker) {
+            this.modalMap.removeLayer(this.tempWaypointMarker);
+        }
+
+        // Добавляем новый маркер
+        this.tempWaypointMarker = L.marker(latlng, {
+            icon: L.divIcon({
+                className: 'temp-waypoint-marker',
+                html: '<i class="fas fa-map-pin" style="color: #00BCD4; font-size: 20px;"></i>',
+                iconSize: [30, 30],
+                iconAnchor: [15, 30]
+            })
+        }).addTo(this.modalMap);
+
+        // Активируем кнопку подтверждения
+        document.getElementById('confirmWaypointBtn').disabled = false;
+
+        console.log('📍 Выбрана точка:', latlng);
+    }
+
+    // НОВЫЙ: Поиск местоположения
+    async searchLocation() {
+        const query = document.getElementById('locationSearch').value.trim();
+        if (!query) {
+            this.app.notificationManager.showNotification('Введите место для поиска', 'warning');
+            return;
+        }
+
+        try {
+            // Простой геокодинг через Nominatim (OpenStreetMap)
+            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`);
+            const results = await response.json();
+
+            if (results.length > 0) {
+                const result = results[0];
+                const lat = parseFloat(result.lat);
+                const lng = parseFloat(result.lon);
+
+                this.modalMap.setView([lat, lng], 14);
+                this.selectWaypointLocation({ lat, lng });
+
+                // Обновляем название точки
+                this.selectedWaypoint.name = result.display_name.split(',')[0];
+                this.app.notificationManager.showNotification('Место найдено на карте', 'success');
+            } else {
+                this.app.notificationManager.showNotification('Место не найдено', 'error');
+            }
+        } catch (error) {
+            console.error('❌ Ошибка поиска места:', error);
+            this.app.notificationManager.showNotification('Ошибка поиска места', 'error');
+        }
+    }
+
+    // НОВЫЙ: Подтверждение добавления точки
+    confirmWaypoint() {
+        if (!this.selectedWaypoint) return;
+
+        const waypoint = {
+            id: this.generateWaypointId(),
+            name: this.selectedWaypoint.name,
+            lat: this.selectedWaypoint.lat,
+            lng: this.selectedWaypoint.lng,
+            description: '',
+            type: 'waypoint'
+        };
+
+        this.currentTrip.days[this.currentDayIndex].waypoints.push(waypoint);
+        this.renderTripDays();
+
+        // Добавляем маркер на основную карту
+        this.addWaypointToMainMap(waypoint, this.currentDayIndex);
+
+        this.closeMapModal();
+        this.app.notificationManager.showNotification('Точка маршрута добавлена');
+    }
+
+    // НОВЫЙ: Закрытие модального окна карты
+    closeMapModal() {
+        this.mapModal.classList.add('hidden');
+        
+        if (this.modalMap) {
+            this.modalMap.remove();
+            this.modalMap = null;
+        }
+
+        this.selectedWaypoint = null;
+        this.currentDayIndex = null;
+
+        // Очищаем поле поиска
+        document.getElementById('locationSearch').value = '';
+        document.getElementById('confirmWaypointBtn').disabled = true;
+    }
+
+    addWaypointToMainMap(waypoint, dayIndex) {
+        if (!this.app.mapManager.map) return;
+
         const marker = L.marker([waypoint.lat, waypoint.lng], {
             icon: L.divIcon({
                 className: 'trip-waypoint-marker',
@@ -364,14 +553,18 @@ class TripPlanningManager {
             </div>
         `);
 
-        // Сохраняем ссылку на маркер
         waypoint.marker = marker;
+    }
+
+    renderCollaborators() {
+        // Заглушка для будущей функциональности
+        const collaboratorsList = document.getElementById('collaboratorsList');
+        collaboratorsList.innerHTML = '<p style="color: var(--text-secondary); font-style: italic;">Функция в разработке</p>';
     }
 
     saveCurrentTrip() {
         if (!this.currentTrip) return;
 
-        // Обновляем данные из формы
         this.currentTrip.title = document.getElementById('tripTitle').value;
         this.currentTrip.description = document.getElementById('tripDescription').value;
         this.currentTrip.startDate = document.getElementById('tripStartDate').value;
@@ -379,10 +572,7 @@ class TripPlanningManager {
         this.currentTrip.transport = document.getElementById('tripTransport').value;
         this.currentTrip.updatedAt = new Date().toISOString();
 
-        // Сохраняем в localStorage
         this.saveTripsToStorage();
-
-        // Отправляем на сервер (если подключен)
         this.syncTripToServer(this.currentTrip);
 
         this.app.notificationManager.showNotification('Поездка сохранена', 'success');
@@ -443,7 +633,6 @@ class TripPlanningManager {
                 break;
         }
 
-        // Создаем и скачиваем файл
         const blob = new Blob([content], { type: mimeType });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -452,7 +641,6 @@ class TripPlanningManager {
         a.click();
         URL.revokeObjectURL(url);
 
-        // Закрываем модальное окно
         document.querySelector('.export-modal').remove();
 
         this.app.notificationManager.showNotification(`Поездка экспортирована в ${format.toUpperCase()}`, 'success');
@@ -612,7 +800,7 @@ class TripPlanningManager {
         document.getElementById('tripEditor').classList.add('hidden');
     }
 
-    // Методы для обновления данных (вызываются из HTML)
+    // Методы для обновления данных
     updateDayTitle(dayIndex, title) {
         if (this.currentTrip && this.currentTrip.days[dayIndex]) {
             this.currentTrip.days[dayIndex].title = title;
@@ -634,7 +822,6 @@ class TripPlanningManager {
     removeDay(dayIndex) {
         if (this.currentTrip && confirm('Удалить этот день?')) {
             this.currentTrip.days.splice(dayIndex, 1);
-            // Перенумеровываем дни
             this.currentTrip.days.forEach((day, index) => {
                 day.day = index + 1;
             });
@@ -647,7 +834,6 @@ class TripPlanningManager {
         if (this.currentTrip && this.currentTrip.days[dayIndex]) {
             const waypoint = this.currentTrip.days[dayIndex].waypoints[waypointIndex];
             
-            // Удаляем маркер с карты
             if (waypoint.marker) {
                 this.app.mapManager.map.removeLayer(waypoint.marker);
             }

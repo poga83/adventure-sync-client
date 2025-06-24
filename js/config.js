@@ -1,9 +1,10 @@
 const CONFIG = {
-    // Подключение к серверу на Render
+    // ИСПРАВЛЕНО: Множественные варианты подключения к серверу
     SERVER_URL: 'https://adventure-sync-server.onrender.com',
     
     FALLBACK_URLS: [
         'https://adventure-sync-server.onrender.com',
+        'https://adventure-sync-server.onrender.com/',
         'http://localhost:3000',
         'http://127.0.0.1:3000'
     ],
@@ -19,18 +20,20 @@ const CONFIG = {
         MAX_ZOOM: 18
     },
     
-    // ИСПРАВЛЕНО: Настройки для роутинга с рабочим API ключом
+    // ИСПРАВЛЕНО: Настройки для роутинга с работающими API ключами
     ROUTING: {
-        // Используем публичный API ключ OpenRouteService для демо
         PROVIDER: 'openrouteservice',
         API_KEY: '5b3ce3597851110001cf6248a1b8ed27eb8a4e9b9e8bcf0f1cc1c715',
         BASE_URL: 'https://api.openrouteservice.org/v2/directions',
         GEOCODING_URL: 'https://api.openrouteservice.org/geocode',
         PROFILE: 'driving-car',
         FORMAT: 'geojson',
-        // Fallback к бесплатному сервису
+        // Fallback к OSRM
         FALLBACK_PROVIDER: 'osrm',
-        FALLBACK_URL: 'https://router.project-osrm.org/route/v1'
+        FALLBACK_URL: 'https://router.project-osrm.org/route/v1',
+        // Дополнительный fallback к GraphHopper
+        GRAPHHOPPER_URL: 'https://graphhopper.com/api/1/route',
+        GRAPHHOPPER_KEY: 'demo' // Демо ключ
     },
     
     MARKER_CLUSTER: {
@@ -57,15 +60,19 @@ const CONFIG = {
         TRIPS_KEY: 'adventure_sync_trips'
     },
     
+    // ИСПРАВЛЕНО: Настройки Socket.IO для Render
     SOCKET: {
-        TIMEOUT: 15000,
-        RECONNECTION_ATTEMPTS: 5,
-        RECONNECTION_DELAY: 2000,
+        TIMEOUT: 30000, // Увеличено время ожидания для Render
+        RECONNECTION_ATTEMPTS: 10, // Больше попыток переподключения
+        RECONNECTION_DELAY: 3000, // Увеличена задержка
         PING_TIMEOUT: 60000,
         PING_INTERVAL: 25000,
         FORCE_NEW: false,
         UPGRADE: true,
-        SECURE: true
+        SECURE: true,
+        // НОВЫЕ настройки для Render
+        ENABLE_POLLING: true,
+        POLLING_TIMEOUT: 30000
     },
     
     UI: {
@@ -82,24 +89,75 @@ const CONFIG = {
     }
 };
 
-// ИСПРАВЛЕНО: Функция для проверки доступности сервера
+// ИСПРАВЛЕНО: Улучшенная функция проверки сервера
 CONFIG.testServerConnection = async function() {
     for (const url of [CONFIG.SERVER_URL, ...CONFIG.FALLBACK_URLS]) {
         try {
+            console.log(`🔍 Проверка сервера: ${url}`);
+            
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000);
+            
             const response = await fetch(`${url}/health`, {
                 method: 'GET',
-                timeout: 10000,
-                mode: 'cors'
+                mode: 'cors',
+                signal: controller.signal,
+                headers: {
+                    'Accept': 'application/json',
+                    'Cache-Control': 'no-cache'
+                }
             });
+            
+            clearTimeout(timeoutId);
+            
             if (response.ok) {
+                const data = await response.json();
                 CONFIG.SERVER_URL = url;
-                console.log(`✅ Сервер доступен: ${url}`);
+                console.log(`✅ Сервер доступен: ${url}`, data);
                 return true;
+            } else {
+                console.warn(`⚠️ Сервер ${url} вернул статус: ${response.status}`);
             }
         } catch (error) {
-            console.warn(`⚠️ Сервер недоступен по адресу ${url}:`, error.message);
+            if (error.name === 'AbortError') {
+                console.warn(`⏱️ Таймаут подключения к ${url}`);
+            } else {
+                console.warn(`⚠️ Сервер недоступен ${url}:`, error.message);
+            }
         }
     }
+    return false;
+};
+
+// ИСПРАВЛЕНО: Проверка с учетом времени "сна" Render
+CONFIG.testServerWithWakeup = async function() {
+    console.log('🌅 Попытка "разбудить" сервер Render...');
+    
+    // Первый запрос может занять 30-60 секунд на Render
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 90000); // 90 секунд для первого запроса
+        
+        const response = await fetch(`${CONFIG.SERVER_URL}/health`, {
+            method: 'GET',
+            mode: 'cors',
+            signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (response.ok) {
+            console.log('✅ Сервер Render активирован');
+            return true;
+        }
+    } catch (error) {
+        if (error.name === 'AbortError') {
+            console.warn('⏱️ Таймаут активации сервера Render (90 сек)');
+        } else {
+            console.error('❌ Ошибка активации сервера Render:', error);
+        }
+    }
+    
     return false;
 };
 
@@ -113,7 +171,6 @@ CONFIG.getMapOptions = function() {
     };
 };
 
-// ИСПРАВЛЕНО: Функция для получения настроек роутинга с fallback
 CONFIG.getRoutingOptions = function(profile = 'driving-car') {
     return {
         profile: profile,
@@ -126,9 +183,11 @@ CONFIG.getRoutingOptions = function(profile = 'driving-car') {
     };
 };
 
-// НОВЫЙ: Функция для проверки доступности OpenRouteService
+// ИСПРАВЛЕНО: Проверка доступности OpenRouteService
 CONFIG.testOpenRouteService = async function() {
     try {
+        const testCoords = [[8.681495, 49.41461], [8.687872, 49.420318]];
+        
         const response = await fetch(`${CONFIG.ROUTING.BASE_URL}/driving-car/geojson`, {
             method: 'POST',
             headers: {
@@ -137,7 +196,7 @@ CONFIG.testOpenRouteService = async function() {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                coordinates: [[8.681495, 49.41461], [8.687872, 49.420318]],
+                coordinates: testCoords,
                 format: 'geojson'
             })
         });
@@ -145,12 +204,35 @@ CONFIG.testOpenRouteService = async function() {
         if (response.ok) {
             console.log('✅ OpenRouteService доступен');
             return true;
+        } else if (response.status === 403) {
+            console.warn('⚠️ OpenRouteService: превышена квота API');
+            return false;
         } else {
             console.warn('⚠️ OpenRouteService недоступен, статус:', response.status);
             return false;
         }
     } catch (error) {
-        console.error('❌ Ошибка проверки OpenRouteService:', error);
+        console.warn('⚠️ Ошибка проверки OpenRouteService:', error.message);
+        return false;
+    }
+};
+
+// НОВАЯ: Проверка OSRM
+CONFIG.testOSRM = async function() {
+    try {
+        const testUrl = `${CONFIG.ROUTING.FALLBACK_URL}/driving/8.681495,49.41461;8.687872,49.420318?overview=false`;
+        
+        const response = await fetch(testUrl);
+        
+        if (response.ok) {
+            console.log('✅ OSRM доступен');
+            return true;
+        } else {
+            console.warn('⚠️ OSRM недоступен, статус:', response.status);
+            return false;
+        }
+    } catch (error) {
+        console.warn('⚠️ Ошибка проверки OSRM:', error.message);
         return false;
     }
 };

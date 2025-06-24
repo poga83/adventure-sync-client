@@ -1,14 +1,199 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Adventure Sync</title>
-  <link rel="stylesheet" href="./css/styles.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adventure Sync</title>
+    
+    <!-- Исправленные пути для GitHub Pages -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+    <link rel="stylesheet" href="./css/styles.css">
+    <link rel="stylesheet" href="./css/trip-planning.css">
+    
+    <!-- Исправленный favicon путь -->
+    <link rel="icon" type="image/png" href="./icon/favicon.png">
 </head>
 <body>
-  <div id="app"></div>
-  <script src="./dist/vendor.js"></script>
-  <script src="./dist/app.js"></script>
+    <!-- Модальное окно авторизации -->
+    <div id="loginModal" class="login-modal active">
+        <div class="login-content">
+            <div class="login-header">
+                <h2>Adventure Sync</h2>
+                <p>Присоединяйтесь к приключению</p>
+            </div>
+            <form id="loginForm" class="login-form">
+                <div class="input-group">
+                    <label for="nickname">Ваш никнейм</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-user"></i>
+                        <input type="text" id="nickname" placeholder="Введите никнейм" required maxlength="20">
+                    </div>
+                    <div id="nicknameError" class="nickname-error hidden"></div>
+                </div>
+                <div class="input-group">
+                    <label for="status">Ваш статус</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-circle"></i>
+                        <select id="status" required>
+                            <option value="auto">🚗 На автомобиле</option>
+                            <option value="moto">🏍️ На мотоцикле</option>
+                            <option value="walking">🚶 Пешком</option>
+                            <option value="busy">🚫 Занят</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" id="loginBtn" class="login-btn">
+                    <i class="fas fa-sign-in-alt"></i>
+                    Войти
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Основное приложение -->
+    <div id="app" class="hidden">
+        <header class="app-header">
+            <button id="menuToggle" class="menu-toggle">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            <h1>Adventure Sync</h1>
+            <div class="header-controls">
+                <span id="userNickname" class="user-nickname"></span>
+                <button id="openTripPlanningBtn" class="trip-planning-btn" title="Планирование поездок">
+                    <i class="fas fa-map-marked-alt"></i>
+                </button>
+                <button id="logoutBtn" class="logout-btn" title="Выйти">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </header>
+
+        <main class="map-wrapper">
+            <div class="map-container">
+                <div id="map"></div>
+            </div>
+        </main>
+
+        <!-- Боковая панель -->
+        <aside id="sidebar" class="sidebar">
+            <div class="sidebar-content">
+                <!-- Секция пользователя -->
+                <div class="user-section">
+                    <div class="user-avatar">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="user-info">
+                        <span id="currentUserName" class="username"></span>
+                        <select id="statusDropdown" class="status-dropdown">
+                            <option value="auto">🚗 На автомобиле</option>
+                            <option value="moto">🏍️ На мотоцикле</option>
+                            <option value="walking">🚶 Пешком</option>
+                            <option value="busy">🚫 Занят</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Фильтр пользователей -->
+                <div class="filter-section">
+                    <h3>Фильтр пользователей</h3>
+                    <div class="filter-grid">
+                        <button class="filter-btn active" data-filter="all">
+                            <i class="fas fa-users"></i>
+                            Все
+                        </button>
+                        <button class="filter-btn" data-filter="auto">
+                            <i class="fas fa-car"></i>
+                            Авто
+                        </button>
+                        <button class="filter-btn" data-filter="moto">
+                            <i class="fas fa-motorcycle"></i>
+                            Мото
+                        </button>
+                        <button class="filter-btn" data-filter="walking">
+                            <i class="fas fa-walking"></i>
+                            Пешком
+                        </button>
+                    </div>
+                    <div class="users-count">
+                        Пользователей онлайн: <span id="usersCount">0</span>
+                    </div>
+                </div>
+
+                <!-- Чат -->
+                <div class="chat-section">
+                    <div class="chat-header">
+                        <h3>Общий чат</h3>
+                        <button id="toggleChat" class="toggle-btn">
+                            <i class="fas fa-chevron-up"></i>
+                        </button>
+                    </div>
+                    <div id="chatContainer" class="chat-container">
+                        <div id="messagesList" class="messages-list"></div>
+                        <div class="chat-input-section">
+                            <div class="chat-input-wrapper">
+                                <input type="text" id="messageInput" placeholder="Написать сообщение..." maxlength="200">
+                                <button id="sendBtn" class="send-btn" disabled>
+                                    <i class="fas fa-paper-plane"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Статус подключения -->
+    <div id="connectionStatus" class="connection-status connecting">
+        <i class="fas fa-spinner fa-spin"></i>
+        <span>Подключение...</span>
+    </div>
+
+    <!-- Контейнер для уведомлений -->
+    <div id="notificationsContainer" class="notifications-container"></div>
+
+    <!-- Модальное окно приватного чата -->
+    <div id="privateChatModal" class="private-chat-modal">
+        <div class="private-chat-content">
+            <div class="private-chat-header">
+                <h3 id="privateChatTitle">Приватный чат</h3>
+                <button id="closePrivateChat" class="close-btn">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="privateChatContainer" class="chat-container">
+                <div id="privateMessagesList" class="messages-list"></div>
+                <div class="chat-input-section">
+                    <div class="chat-input-wrapper">
+                        <input type="text" id="privateMessageInput" placeholder="Написать сообщение..." maxlength="200">
+                        <button id="sendPrivateBtn" class="send-btn" disabled>
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript библиотеки -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    <script src="https://cdn.socket.io/4.7.0/socket.io.min.js"></script>
+    
+    <!-- Основные скрипты приложения -->
+    <script src="./js/config.js"></script>
+    <script src="./js/modules/AuthManager.js"></script>
+    <script src="./js/modules/ConnectionManager.js"></script>
+    <script src="./js/modules/MapManager.js"></script>
+    <script src="./js/modules/MarkerManager.js"></script>
+    <script src="./js/modules/ChatManager.js"></script>
+    <script src="./js/modules/NotificationManager.js"></script>
+    <script src="./js/modules/TripPlanningManager.js"></script>
+    <script src="./js/app.js"></script>
 </body>
 </html>

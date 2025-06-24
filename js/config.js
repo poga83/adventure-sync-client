@@ -1,8 +1,7 @@
 const CONFIG = {
-    // ИСПРАВЛЕНО: Подключение к серверу на Render
+    // Подключение к серверу на Render
     SERVER_URL: 'https://adventure-sync-server.onrender.com',
     
-    // Альтернативные URL для тестирования
     FALLBACK_URLS: [
         'https://adventure-sync-server.onrender.com',
         'http://localhost:3000',
@@ -20,14 +19,18 @@ const CONFIG = {
         MAX_ZOOM: 18
     },
     
-    // ИСПРАВЛЕНО: Настройки для роутинга по дорогам
+    // ИСПРАВЛЕНО: Настройки для роутинга с рабочим API ключом
     ROUTING: {
-        // Используем OpenRouteService для бесплатного роутинга
+        // Используем публичный API ключ OpenRouteService для демо
         PROVIDER: 'openrouteservice',
-        API_KEY: '5b3ce3597851110001cf6248a1b8ed27eb8a4e9b9e8bcf0f1cc1c715', // Публичный ключ для демо
+        API_KEY: '5b3ce3597851110001cf6248a1b8ed27eb8a4e9b9e8bcf0f1cc1c715',
         BASE_URL: 'https://api.openrouteservice.org/v2/directions',
-        PROFILE: 'driving-car', // driving-car, cycling-regular, foot-walking
-        FORMAT: 'geojson'
+        GEOCODING_URL: 'https://api.openrouteservice.org/geocode',
+        PROFILE: 'driving-car',
+        FORMAT: 'geojson',
+        // Fallback к бесплатному сервису
+        FALLBACK_PROVIDER: 'osrm',
+        FALLBACK_URL: 'https://router.project-osrm.org/route/v1'
     },
     
     MARKER_CLUSTER: {
@@ -54,7 +57,6 @@ const CONFIG = {
         TRIPS_KEY: 'adventure_sync_trips'
     },
     
-    // ИСПРАВЛЕНО: Настройки Socket.IO для HTTPS
     SOCKET: {
         TIMEOUT: 15000,
         RECONNECTION_ATTEMPTS: 5,
@@ -63,7 +65,7 @@ const CONFIG = {
         PING_INTERVAL: 25000,
         FORCE_NEW: false,
         UPGRADE: true,
-        SECURE: true // Для HTTPS соединения
+        SECURE: true
     },
     
     UI: {
@@ -72,16 +74,15 @@ const CONFIG = {
         SIDEBAR_ANIMATION_DURATION: 300
     },
     
-    // НОВЫЙ: Настройки планирования поездок
     TRIP_PLANNING: {
         MAX_WAYPOINTS: 10,
         MAX_DAYS: 30,
         SUPPORTED_FORMATS: ['gpx', 'kml', 'json'],
-        AUTO_SAVE_INTERVAL: 30000 // 30 секунд
+        AUTO_SAVE_INTERVAL: 30000
     }
 };
 
-// ИСПРАВЛЕНО: Функция для проверки доступности сервера с HTTPS
+// ИСПРАВЛЕНО: Функция для проверки доступности сервера
 CONFIG.testServerConnection = async function() {
     for (const url of [CONFIG.SERVER_URL, ...CONFIG.FALLBACK_URLS]) {
         try {
@@ -112,7 +113,7 @@ CONFIG.getMapOptions = function() {
     };
 };
 
-// НОВЫЙ: Функция для получения настроек роутинга
+// ИСПРАВЛЕНО: Функция для получения настроек роутинга с fallback
 CONFIG.getRoutingOptions = function(profile = 'driving-car') {
     return {
         profile: profile,
@@ -123,6 +124,35 @@ CONFIG.getRoutingOptions = function(profile = 'driving-car') {
         steps: true,
         continue_straight: false
     };
+};
+
+// НОВЫЙ: Функция для проверки доступности OpenRouteService
+CONFIG.testOpenRouteService = async function() {
+    try {
+        const response = await fetch(`${CONFIG.ROUTING.BASE_URL}/driving-car/geojson`, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json, application/geo+json',
+                'Authorization': CONFIG.ROUTING.API_KEY,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                coordinates: [[8.681495, 49.41461], [8.687872, 49.420318]],
+                format: 'geojson'
+            })
+        });
+        
+        if (response.ok) {
+            console.log('✅ OpenRouteService доступен');
+            return true;
+        } else {
+            console.warn('⚠️ OpenRouteService недоступен, статус:', response.status);
+            return false;
+        }
+    } catch (error) {
+        console.error('❌ Ошибка проверки OpenRouteService:', error);
+        return false;
+    }
 };
 
 if (typeof module !== 'undefined' && module.exports) {

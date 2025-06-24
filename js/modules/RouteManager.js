@@ -4,13 +4,29 @@ class RouteManager {
         this.currentRoute = null;
         this.routeLayer = null;
         this.routeMarkers = [];
+        this.openRouteServiceAvailable = true;
     }
     
     initialize(map) {
         console.log('🛣️ Инициализация RouteManager...');
         this.map = map;
         this.addRouteControls();
+        
+        // Проверяем доступность OpenRouteService
+        this.checkOpenRouteServiceAvailability();
+        
         console.log('✅ RouteManager инициализирован');
+    }
+    
+    async checkOpenRouteServiceAvailability() {
+        this.openRouteServiceAvailable = await CONFIG.testOpenRouteService();
+        if (!this.openRouteServiceAvailable) {
+            console.warn('⚠️ OpenRouteService недоступен, будет использован OSRM fallback');
+            this.app.notificationManager.showNotification(
+                'Сервис маршрутизации ограничен - маршруты будут простыми', 
+                'warning'
+            );
+        }
     }
     
     addRouteControls() {
@@ -34,93 +50,152 @@ class RouteManager {
         routeControl.addTo(this.map);
     }
     
-    // ИСПРАВЛЕНО: Построение маршрута по дорогам через OpenRouteService
+    // ИСПРАВЛЕНО: Построение маршрута с fallback на OSRM
     async createRoute(startLatLng, endLatLng) {
-        console.log('🗺️ Создание маршрута по дорогам от', startLatLng, 'до', endLatLng);
+        console.log('🗺️ Создание маршрута от', startLatLng, 'до', endLatLng);
         
         this.clearRoute();
         
-        try {
-            // Показываем индикатор загрузки
-            this.app.notificationManager.showNotification('Построение маршрута...', 'info');
-            
-            // Определяем профиль маршрута на основе текущего статуса пользователя
-            const userStatus = this.app.authManager.getCurrentUser()?.status || 'auto';
-            let profile = 'driving-car';
-            
-            switch (userStatus) {
-                case 'auto':
-                    profile = 'driving-car';
-                    break;
-                case 'moto':
-                    profile = 'driving-car'; // Для мотоциклов используем автомобильный профиль
-                    break;
-                case 'walking':
-                    profile = 'foot-walking';
-                    break;
-                default:
-                    profile = 'driving-car';
+        // Показываем индикатор загрузки
+        this.app.notificationManager.showNotification('Построение маршрута...', 'info');
+        
+        // Определяем профиль маршрута
+        const userStatus = this.app.authManager.getCurrentUser()?.status || 'auto';
+        let profile = this.getRoutingProfile(userStatus);
+        
+        // Пробуем OpenRouteService сначала
+        if (this.openRouteServiceAvailable) {
+            try {
+                const success = await this.createOpenRouteServiceRoute(startLatLng, endLatLng, profile);
+                if (success) return;
+            } catch (error) {
+                console.warn('⚠️ OpenRouteService не удался, пробуем OSRM:', error);
+                this.openRouteServiceAvailable = false;
             }
-            
-            // Формируем запрос к OpenRouteService API
-            const start = [startLatLng.lng || startLatLng[1], startLatLng.lat || startLatLng[0]];
-            const end = [endLatLng.lng || endLatLng[1], endLatLng.lat || endLatLng[0]];
-            
-            const url = `${CONFIG.ROUTING.BASE_URL}/${profile}/geojson`;
-            const requestBody = {
-                coordinates: [start, end],
-                format: 'geojson',
-                geometry: true,
-                instructions: true,
-                preference: 'recommended',
-                units: 'km'
-            };
-            
-            console.log('📡 Отправка запроса к OpenRouteService:', url, requestBody);
-            
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Accept': 'application/json, application/geo+json, application/gpx+xml, img/png; charset=utf-8',
-                    'Authorization': CONFIG.ROUTING.API_KEY,
-                    'Content-Type': 'application/json; charset=utf-8'
-                },
-                body: JSON.stringify(requestBody)
-            });
-            
-            if (!response.ok) {
+        }
+        
+        // Fallback на OSRM
+        try {
+            const success = await this.createOSRMRoute(startLatLng, endLatLng, profile);
+            if (success) return;
+        } catch (error) {
+            console.warn('⚠️ OSRM не удался, используем прямую линию:', error);
+        }
+        
+        // Последний fallback - прямая линия
+        this.createSimpleRoute(startLatLng, endLatLng);
+    }
+    
+    async createOpenRouteServiceRoute(startLatLng, endLatLng, profile) {
+        const start = [startLatLng.lng || startLatLng[1], startLatLng.lat || startLatLng[0]];
+        const end = [endLatLng.lng || endLatLng[1], endLatLng.lat || endLatLng[0]];
+        
+        const url = `${CONFIG.ROUTING.BASE_URL}/${profile}/geojson`;
+        const requestBody = {
+            coordinates: [start, end],
+            format: 'geojson',
+            geometry: true,
+            instructions: true,
+            preference: 'recommended',
+            units: 'km'
+        };
+        
+        console.log('📡 Запрос к OpenRouteService:', url);
+        
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json, application/geo+json',
+                'Authorization': CONFIG.ROUTING.API_KEY,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
+        });
+        
+        if (!response.ok) {
+            if (response.status === 403) {
+                throw new Error('API ключ недействителен или превышена квота');
+            } else if (response.status === 404) {
+                throw new Error('Маршрут не найден');
+            } else {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
+        }
+        
+        const routeData = await response.json();
+        console.log('✅ Получен ответ от OpenRouteService');
+        
+        if (routeData.features && routeData.features.length > 0) {
+            const route = routeData.features[0];
+            const coordinates = route.geometry.coordinates;
+            const properties = route.properties;
             
-            const routeData = await response.json();
-            console.log('✅ Получен ответ от OpenRouteService:', routeData);
+            this.displayRoute(coordinates, properties, startLatLng, endLatLng);
+            this.showRouteInfo(properties, 'OpenRouteService');
             
-            if (routeData.features && routeData.features.length > 0) {
-                const route = routeData.features[0];
-                const coordinates = route.geometry.coordinates;
-                const properties = route.properties;
-                
-                // Создаем маршрут на карте
-                this.displayRoute(coordinates, properties, startLatLng, endLatLng);
-                
-                // Показываем информацию о маршруте
-                this.showRouteInfo(properties);
-                
-                this.app.notificationManager.showNotification('Маршрут построен по дорогам', 'success');
-            } else {
-                throw new Error('Не удалось построить маршрут');
-            }
+            this.app.notificationManager.showNotification('Маршрут построен по дорогам', 'success');
+            return true;
+        }
+        
+        return false;
+    }
+    
+    async createOSRMRoute(startLatLng, endLatLng, profile) {
+        // Конвертируем профиль для OSRM
+        let osrmProfile = 'driving';
+        if (profile === 'foot-walking') osrmProfile = 'walking';
+        if (profile === 'cycling-regular') osrmProfile = 'cycling';
+        
+        const start = [startLatLng.lng || startLatLng[1], startLatLng.lat || startLatLng[0]];
+        const end = [endLatLng.lng || endLatLng[1], endLatLng.lat || endLatLng[0]];
+        
+        const url = `${CONFIG.ROUTING.FALLBACK_URL}/${osrmProfile}/${start.join(',')};${end.join(',')}?overview=full&geometries=geojson&steps=true`;
+        
+        console.log('📡 Запрос к OSRM:', url);
+        
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+            throw new Error(`OSRM HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const routeData = await response.json();
+        console.log('✅ Получен ответ от OSRM');
+        
+        if (routeData.routes && routeData.routes.length > 0) {
+            const route = routeData.routes[0];
+            const coordinates = route.geometry.coordinates;
             
-        } catch (error) {
-            console.error('❌ Ошибка при построении маршрута:', error);
+            // Конвертируем данные OSRM в формат OpenRouteService
+            const properties = {
+                segments: [{
+                    distance: route.distance,
+                    duration: route.duration
+                }]
+            };
             
-            // Fallback: строим простую прямую линию
-            this.app.notificationManager.showNotification('Ошибка API маршрутизации, показана прямая линия', 'warning');
-            this.createSimpleRoute(startLatLng, endLatLng);
+            this.displayRoute(coordinates, properties, startLatLng, endLatLng);
+            this.showRouteInfo(properties, 'OSRM');
+            
+            this.app.notificationManager.showNotification('Маршрут построен через OSRM', 'success');
+            return true;
+        }
+        
+        return false;
+    }
+    
+    getRoutingProfile(userStatus) {
+        switch (userStatus) {
+            case 'auto':
+            case 'moto':
+                return 'driving-car';
+            case 'walking':
+                return 'foot-walking';
+            default:
+                return 'driving-car';
         }
     }
     
-    // Отображение маршрута на карте
     displayRoute(coordinates, properties, startLatLng, endLatLng) {
         // Конвертируем координаты из [lng, lat] в [lat, lng] для Leaflet
         const latLngs = coordinates.map(coord => [coord[1], coord[0]]);
@@ -128,7 +203,7 @@ class RouteManager {
         // Создаем полилинию маршрута
         this.routeLayer = L.polyline(latLngs, {
             color: '#2196F3',
-            weight: 5,
+            weight: 6,
             opacity: 0.8,
             lineJoin: 'round',
             lineCap: 'round'
@@ -138,18 +213,18 @@ class RouteManager {
         const startMarker = L.marker(startLatLng, {
             icon: L.divIcon({
                 className: 'route-marker start-marker',
-                html: '<i class="fas fa-play" style="color: #4CAF50; font-size: 14px;"></i>',
-                iconSize: [25, 25],
-                iconAnchor: [12, 12]
+                html: '<i class="fas fa-play" style="color: #4CAF50; font-size: 16px;"></i>',
+                iconSize: [30, 30],
+                iconAnchor: [15, 15]
             })
         }).addTo(this.map);
         
         const endMarker = L.marker(endLatLng, {
             icon: L.divIcon({
                 className: 'route-marker end-marker',
-                html: '<i class="fas fa-flag-checkered" style="color: #f44336; font-size: 14px;"></i>',
-                iconSize: [25, 25],
-                iconAnchor: [12, 12]
+                html: '<i class="fas fa-flag-checkered" style="color: #f44336; font-size: 16px;"></i>',
+                iconSize: [30, 30],
+                iconAnchor: [15, 15]
             })
         }).addTo(this.map);
         
@@ -172,7 +247,6 @@ class RouteManager {
         }
     }
     
-    // Fallback: простой маршрут по прямой
     createSimpleRoute(start, end) {
         const waypoints = [start, end];
         
@@ -216,14 +290,15 @@ class RouteManager {
             clearBtn.style.display = 'block';
         }
         
-        // Показываем информацию о прямом маршруте
         const distance = this.calculateDistance(start, end);
         this.showSimpleRouteInfo(distance);
+        
+        this.app.notificationManager.showNotification('Показан приблизительный маршрут', 'warning');
     }
     
-    showRouteInfo(properties) {
-        const distance = (properties.segments[0].distance / 1000).toFixed(2); // км
-        const duration = Math.round(properties.segments[0].duration / 60); // минуты
+    showRouteInfo(properties, provider) {
+        const distance = (properties.segments[0].distance / 1000).toFixed(2);
+        const duration = Math.round(properties.segments[0].duration / 60);
         
         let routeInfo = document.getElementById('routeInfo');
         if (routeInfo) routeInfo.remove();
@@ -235,10 +310,16 @@ class RouteManager {
                 <h4 style="margin-bottom: 10px;">🗺️ Информация о маршруте</h4>
                 <p><strong>Расстояние:</strong> ${distance} км</p>
                 <p><strong>Время в пути:</strong> ${duration} мин</p>
-                <p><strong>Тип маршрута:</strong> По дорогам</p>
-                <small style="opacity: 0.8;">Данные от OpenRouteService</small>
+                <p><strong>Провайдер:</strong> ${provider}</p>
+                <p><strong>Тип:</strong> По дорогам</p>
+                <small style="opacity: 0.8;">Нажмите чтобы закрыть</small>
             </div>
         `;
+        
+        routeInfo.addEventListener('click', () => {
+            routeInfo.remove();
+        });
+        
         document.body.appendChild(routeInfo);
         
         setTimeout(() => {
@@ -258,11 +339,16 @@ class RouteManager {
             <div style="background: rgba(255,152,0,0.9); color: white; padding: 15px; border-radius: 8px; position: fixed; top: 80px; left: 20px; z-index: 1000; max-width: 300px;">
                 <h4 style="margin-bottom: 10px;">⚠️ Приблизительный маршрут</h4>
                 <p><strong>Расстояние:</strong> ~${distance.toFixed(2)} км</p>
-                <p><strong>Время в пути:</strong> ~${Math.ceil(distance / 5)} мин пешком</p>
-                <p><strong>Тип маршрута:</strong> По прямой</p>
-                <small style="opacity: 0.8;">Приблизительные данные</small>
+                <p><strong>Время:</strong> ~${Math.ceil(distance * 4)} мин</p>
+                <p><strong>Тип:</strong> По прямой</p>
+                <small style="opacity: 0.8;">Нажмите чтобы закрыть</small>
             </div>
         `;
+        
+        routeInfo.addEventListener('click', () => {
+            routeInfo.remove();
+        });
+        
         document.body.appendChild(routeInfo);
         
         setTimeout(() => {

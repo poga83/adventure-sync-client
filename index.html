@@ -1,48 +1,104 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Adventure Sync</title>
 
+  <!-- библиотеки CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link rel="stylesheet" href="./css/styles.css">
   <link rel="stylesheet" href="./css/trip-planning.css">
+
+  <link rel="icon" href="./icon/favicon.png" />
 </head>
 <body>
+  <!-- ==== LOGIN MODAL ================================================== -->
   <div id="loginModal" class="login-modal active">
-    <!-- ... форма авторизации ... -->
-    <button id="loginBtn" class="login-btn">Войти</button>
-  </div>
+    <div class="login-content">
+      <div class="login-header">
+        <h2>Adventure Sync</h2>
+        <p>Войдите, чтобы начать приключение</p>
+      </div>
 
+      <form id="loginForm" class="login-form">
+        <div class="input-group">
+          <label for="nickname">Никнейм</label>
+          <div class="input-wrapper">
+            <i class="fas fa-user"></i>
+            <input id="nickname" maxlength="20" required placeholder="Введите никнейм">
+          </div>
+          <div id="nicknameError" class="nickname-error hidden"></div>
+        </div>
+
+        <div class="input-group">
+          <label for="status">Статус</label>
+          <div class="input-wrapper">
+            <i class="fas fa-circle"></i>
+            <select id="status" required>
+              <option value="auto">🚗 Авто</option>
+              <option value="moto">🏍 Мото</option>
+              <option value="walking">🚶 Пешком</option>
+              <option value="busy">🚫 Занят</option>
+            </select>
+          </div>
+        </div>
+
+        <button id="loginBtn" class="login-btn" type="submit">
+          <i class="fas fa-sign-in-alt"></i> Войти
+        </button>
+      </form>
+    </div>
+  </div>
+  <!-- ==== MAIN APP ===================================================== -->
   <div id="app" class="hidden">
-    <!-- header, map, sidebar, чат и т.д. -->
+    <header class="app-header">
+      <button id="menuToggle" class="menu-toggle">
+        <span></span><span></span><span></span>
+      </button>
+      <h1>Adventure Sync</h1>
+      <div class="header-controls">
+        <span id="userNickname" class="user-nickname"></span>
+        <button id="logoutBtn" class="logout-btn" title="Выйти">
+          <i class="fas fa-sign-out-alt"></i>
+        </button>
+      </div>
+    </header>
+
+    <main class="map-wrapper">
+      <div id="map"></div>
+    </main>
+
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-content">
+        <!-- (оставлен существующий HTML боковой панели) -->
+      </div>
+    </aside>
   </div>
 
+  <!-- статус подключения + контейнер уведомлений -->
   <div id="connectionStatus" class="connection-status connecting">
-    <i class="fas fa-spinner fa-spin"></i>
-    <span>Подключение...</span>
+    <i class="fas fa-spinner fa-spin"></i><span>Подключение…</span>
   </div>
   <div id="notificationsContainer" class="notifications-container"></div>
-  <div id="privateChatModal" class="private-chat-modal">
-    <!-- ... приватный чат ... -->
-  </div>
 
-  <!-- Библиотеки -->
+  <!-- ==== JS-библиотеки (NON-module) =================================== -->
+  <script src="https://cdn.socket.io/4.7.0/socket.io.min.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
-  <script src="https://cdn.socket.io/4.7.0/socket.io.min.js"></script>
 
-  <!-- Модули -->
-  <script src="./js/modules/UIManager.js"></script>
-  <script src="./js/modules/AuthManager.js"></script>
-  <script src="./js/modules/ConnectionManager.js"></script>
-  <script src="./js/modules/MapManager.js"></script>
-  <script src="./js/modules/MarkerManager.js"></script>
-  <script src="./js/modules/ChatManager.js"></script>
-  <script src="./js/modules/NotificationManager.js"></script>
-  <script src="./js/modules/TripPlanningManager.js"></script>
-
-  <!-- Главный скрипт -->
-  <script src="./js/app.js" defer></script>
+  <!-- ==== Конфиг + модули  (ВСЕ type=module) =========================== -->
+  <script type="module" src="./js/config.js"></script>
+  <script type="module" src="./js/modules/UIManager.js"></script>
+  <script type="module" src="./js/modules/NotificationManager.js"></script>
+  <script type="module" src="./js/modules/ConnectionManager.js"></script>
+  <script type="module" src="./js/modules/AuthManager.js"></script>
+  <script type="module" src="./js/modules/MapManager.js"></script>
+  <script type="module" src="./js/modules/MarkerManager.js"></script>
+  <script type="module" src="./js/modules/ChatManager.js"></script>
+  <script type="module" src="./js/modules/TripPlanningManager.js"></script>
+  <script type="module" src="./js/app.js"></script>
 </body>
 </html>

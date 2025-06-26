@@ -1,9 +1,9 @@
 /* js/config.js */
 export const CONFIG = {
-  // ОБНОВЛЕНО: Новый URL сервера на Fly.io
-  SERVER_URL: 'https://adventure-sync-server.fly.dev',
+  // ОБНОВЛЕНО: URL Koyeb сервера
+  SERVER_URL: 'https://adventure-sync-server-poga83.koyeb.app',
   FALLBACK_URLS: [
-    'https://adventure-sync-server.fly.dev',
+    'https://adventure-sync-server-poga83.koyeb.app',
     'http://localhost:3000'
   ],
   
@@ -12,17 +12,19 @@ export const CONFIG = {
     timeout: 30000,
     reconnectionAttempts: 15,
     reconnectionDelay: 2000,
-    reconnectionDelayMax: 10000,
+    reconnectionDelayMax: 15000,
     pingInterval: 25000,
     pingTimeout: 60000,
     secure: true,
     withCredentials: false,
     upgrade: true,
     rememberUpgrade: true,
-    
-    // Дополнительные настройки для Fly.io
     forceNew: false,
-    multiplex: true
+    
+    // Оптимизация для Koyeb
+    autoConnect: true,
+    multiplex: true,
+    rejectUnauthorized: true
   },
   
   MAP: {
@@ -34,7 +36,8 @@ export const CONFIG = {
   
   UI: { 
     NOTIFICATION_TIMEOUT: 5000,
-    CONNECTION_CHECK_INTERVAL: 30000
+    CONNECTION_CHECK_INTERVAL: 30000,
+    MAX_MESSAGE_LENGTH: 500
   },
   
   ROUTING: {
@@ -47,11 +50,11 @@ export const CONFIG = {
   }
 };
 
-// Улучшенная проверка сервера для Fly.io
+// Улучшенная проверка Koyeb сервера
 export async function pingServer() {
   for (const url of [CONFIG.SERVER_URL, ...CONFIG.FALLBACK_URLS]) {
     try {
-      console.log(`🔍 Проверка Fly.io сервера: ${url}`);
+      console.log(`🔍 Проверка Koyeb сервера: ${url}`);
       
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
@@ -62,7 +65,8 @@ export async function pingServer() {
         signal: controller.signal,
         headers: {
           'Accept': 'application/json',
-          'Cache-Control': 'no-cache'
+          'Cache-Control': 'no-cache',
+          'User-Agent': 'Adventure-Sync-Client'
         }
       });
       
@@ -71,27 +75,28 @@ export async function pingServer() {
       if (response.ok) {
         const data = await response.json();
         CONFIG.SERVER_URL = url;
-        console.log(`✅ Fly.io сервер доступен: ${url}`, data);
-        return true;
+        console.log(`✅ Koyeb сервер доступен: ${url}`, data);
+        return { success: true, data };
       }
     } catch (error) {
-      console.warn(`⚠️ Fly.io сервер недоступен ${url}:`, error.message);
+      console.warn(`⚠️ Koyeb сервер недоступен ${url}:`, error.message);
     }
   }
-  return false;
+  return { success: false };
 }
 
-// Проверка статуса Fly.io региона
-export async function checkFlyRegion() {
+// Получение статистики Koyeb сервера
+export async function getServerStats() {
   try {
-    const response = await fetch(`${CONFIG.SERVER_URL}/`, { mode: 'cors' });
+    const response = await fetch(`${CONFIG.SERVER_URL}/stats`, { 
+      mode: 'cors',
+      headers: { 'Accept': 'application/json' }
+    });
     if (response.ok) {
-      const data = await response.json();
-      console.log('🌍 Подключено к Fly.io серверу:', data);
-      return data;
+      return await response.json();
     }
   } catch (error) {
-    console.warn('⚠️ Не удалось получить информацию о Fly.io регионе:', error);
+    console.warn('⚠️ Не удалось получить статистику Koyeb:', error);
   }
   return null;
 }

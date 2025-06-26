@@ -4,12 +4,12 @@ export class UIManager {
     console.error(msg);
     alert(`Ошибка: ${msg}`);
   }
-  notify (msg, type='info') {
-    const n = document.createElement('div');
-    n.className = `notification ${type}`;
-    n.textContent = msg;
-    document.getElementById('notificationsContainer').append(n);
-    setTimeout(()=>n.remove(), 5000);
+  notify (msg,type='info') {
+    const n=document.createElement('div');
+    n.className=`notification ${type}`;
+    n.textContent=msg;
+    document.getElementById('notificationsContainer')?.append(n);
+    setTimeout(()=>n.remove(), CONFIG.UI.NOTIFICATION_TIMEOUT);
   }
 }
-window.UIManager = UIManager;       // отдаём в глобал ‑ нужен app.js
+window.UIManager = UIManager;   // глобально

@@ -1,27 +1,39 @@
 /* js/app.js */
-import { CONFIG }                     from './config.js';
-import { UIManager }                  from './modules/UIManager.js';
-import { NotificationManager }        from './modules/NotificationManager.js';
-import { ConnectionManager }          from './modules/ConnectionManager.js';
-import { AuthManager }                from './modules/AuthManager.js';
-import { MapManager }                 from './modules/MapManager.js';
+import { UIManager }            from './modules/UIManager.js';
+import { NotificationManager }  from './modules/NotificationManager.js';
+import { AuthManager }          from './modules/AuthManager.js';
+import { ConnectionManager }    from './modules/ConnectionManager.js';
+import { MapManager }           from './modules/MapManager.js';
 
-console.log('🚀 Запуск Adventure Sync v2.1…');
+console.log('🚀 Adventure Sync ‑ инициализация…');
 
 document.addEventListener('DOMContentLoaded', async () => {
-  console.log('📄 DOM загружен, инициализация Adventure Sync…');
-
-  // Глобальные ссылки (чтобы старые скрипты, если есть, не падали)
-  window.ui               = new UIManager();
-  window.notificationMgr   = new NotificationManager();
-  window.authMgr          = new AuthManager();
-  window.connectionMgr    = new ConnectionManager();
-  window.mapMgr           = new MapManager();
+  window.ui    = new UIManager();
+  window.note  = new NotificationManager();
+  window.auth  = new AuthManager();
+  window.conn  = new ConnectionManager();
+  window.map   = new MapManager();
 
   try {
-    await window.connectionMgr.connect();
-    window.mapMgr.init();
-  } catch (err) {
-    window.ui.showError(err.message);
+    await window.conn.connect();
+    window.map.init();
+  } catch (e) {
+    window.ui.showError(e.message);
   }
+
+  // простейшая авторизация (для теста)
+  document.getElementById('loginForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const name   = document.getElementById('nickname').value;
+    const status = document.getElementById('status').value;
+    try {
+      const user = window.auth.login(name, status);
+      window.ui.notify(`Добро пожаловать, ${user.name}!`, 'success');
+      document.getElementById('loginModal').classList.add('hidden');
+      document.getElementById('app').classList.remove('hidden');
+    } catch (err) {
+      document.getElementById('nicknameError').textContent = err.message;
+      document.getElementById('nicknameError').classList.remove('hidden');
+    }
+  });
 });

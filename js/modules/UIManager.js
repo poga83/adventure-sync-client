@@ -1,14 +1,15 @@
-// js/modules/UIManager.js
-class UIManager {
-  constructor() {}
-
-  showError(msg) {
-    alert("Ошибка: " + msg);
+/* js/modules/UIManager.js */
+export class UIManager {
+  showError (msg) {
+    console.error(msg);
+    alert(`Ошибка: ${msg}`);
   }
-
-  showNotification(msg, type = "info") {
-    console.log(`[${type.toUpperCase()}] ${msg}`);
+  notify (msg, type='info') {
+    const n = document.createElement('div');
+    n.className = `notification ${type}`;
+    n.textContent = msg;
+    document.getElementById('notificationsContainer').append(n);
+    setTimeout(()=>n.remove(), 5000);
   }
 }
-
-window.UIManager = UIManager;
+window.UIManager = UIManager;       // отдаём в глобал ‑ нужен app.js

@@ -1,92 +1,157 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Adventure Sync</title>
-
-  <!-- CSS библиотеки -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-  <link rel="stylesheet" href="./css/styles.css" />
-  <link rel="stylesheet" href="./css/trip-planning.css" />
-
-  <link rel="icon" href="./icon/favicon.png" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adventure Sync</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/trip-planning.css">
+    <link rel="icon" href="icon/favicon.ico" type="image/x-icon">
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://cdn.socket.io/4.7.0/socket.io.min.js"></script>
 </head>
 <body>
+    <div id="app" class="hidden">
+        <header class="app-header">
+            <h1>Adventure Sync</h1>
+            <div class="header-controls">
+                <span id="userNickname" class="user-nickname"></span>
+                <button id="chatToggle" class="action-btn" title="Чат">
+                    <i class="fas fa-comments"></i>
+                </button>
+                <button id="tripPlanningBtn" class="trip-planning-btn" title="Планирование поездки">
+                    <i class="fas fa-route"></i>
+                </button>
+                <button id="logoutBtn" class="logout-btn" title="Выход">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </header>
 
-  <!-- ===== Модальное окно входа ===== -->
-  <div id="loginModal" class="login-modal active">
-    <div class="login-content">
-      <div class="login-header">
-        <h2>Adventure Sync</h2>
-        <p>Войдите, чтобы начать приключение</p>
-      </div>
-
-      <form id="loginForm" class="login-form">
-        <div class="input-group">
-          <label for="nickname">Никнейм</label>
-          <div class="input-wrapper">
-            <i class="fas fa-user"></i>
-            <input id="nickname" maxlength="20" required placeholder="Введите никнейм" />
-          </div>
-          <div id="nicknameError" class="nickname-error hidden"></div>
+        <div class="map-wrapper">
+            <div id="map"></div>
+            <div id="connectionStatus" class="connection-status">
+                <i class="fas fa-spinner fa-spin"></i>
+                <span>Подключение…</span>
+            </div>
         </div>
 
-        <div class="input-group">
-          <label for="status">Статус</label>
-          <div class="input-wrapper">
-            <i class="fas fa-circle"></i>
-            <select id="status" required>
-              <option value="auto">🚗 Авто</option>
-              <option value="moto">🏍 Мото</option>
-              <option value="walking">🚶 Пешком</option>
-              <option value="busy">🚫 Занят</option>
-            </select>
-          </div>
+        <!-- Боковая панель чата -->
+        <div id="chatSidebar" class="sidebar">
+            <div class="sidebar-content">
+                <div class="chat-section">
+                    <h3>Чат</h3>
+                    <div id="messagesContainer" class="messages-container"></div>
+                    <div class="message-input-container">
+                        <input type="text" id="messageInput" placeholder="Введите сообщение..." maxlength="500">
+                        <button id="sendMessageBtn" class="send-btn">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="users-section">
+                    <h3>Участники онлайн</h3>
+                    <div id="usersList" class="users-list"></div>
+                </div>
+            </div>
         </div>
 
-        <button id="loginBtn" class="login-btn" type="submit">
-          <i class="fas fa-sign-in-alt"></i> Войти
-        </button>
-      </form>
+        <!-- Панель планирования поездки -->
+        <div id="tripPlanningPanel" class="trip-planning-panel hidden">
+            <div class="trip-panel-content">
+                <div class="trip-header">
+                    <h2>Планирование поездки</h2>
+                    <button id="closeTripPanel" class="close-btn">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="trip-form">
+                    <div class="form-group">
+                        <label for="tripName">Название поездки</label>
+                        <input type="text" id="tripName" placeholder="Введите название поездки">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="tripDescription">Описание</label>
+                        <textarea id="tripDescription" placeholder="Описание поездки..."></textarea>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="startDate">Дата начала</label>
+                            <input type="date" id="startDate">
+                        </div>
+                        <div class="form-group">
+                            <label for="endDate">Дата окончания</label>
+                            <input type="date" id="endDate">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Точка сбора</label>
+                        <button id="setGatheringPointBtn" class="action-btn">
+                            <i class="fas fa-map-marker-alt"></i>
+                            Выбрать на карте
+                        </button>
+                        <div id="gatheringPointInfo" class="gathering-point-info hidden">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Точка сбора установлена</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button id="createTripBtn" class="primary-btn">
+                            <i class="fas fa-plus"></i>
+                            Создать поездку
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="trips-list">
+                    <h3>Активные поездки</h3>
+                    <div id="activeTrips" class="trips-container"></div>
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
 
-  <!-- ===== Основное приложение ===== -->
-  <div id="app" class="hidden">
-    <header class="app-header">
-      <button id="menuToggle" class="menu-toggle"><span></span><span></span><span></span></button>
-      <h1>Adventure Sync</h1>
-      <div class="header-controls">
-        <span id="userNickname" class="user-nickname"></span>
-        <button id="logoutBtn" class="logout-btn" title="Выйти">
-          <i class="fas fa-sign-out-alt"></i>
-        </button>
-      </div>
-    </header>
+    <!-- Модальное окно входа -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <h2>Adventure Sync</h2>
+            <p>Войдите, чтобы начать приключение</p>
+            
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="nickname">Никнейм</label>
+                    <input type="text" id="nickname" required minlength="2" maxlength="20">
+                    <div id="nicknameError" class="error-message hidden"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="status">Статус</label>
+                    <select id="status" required>
+                        <option value="auto">🚗 Авто</option>
+                        <option value="moto">🏍 Мото</option>
+                        <option value="walking">🚶 Пешком</option>
+                        <option value="busy">🚫 Занят</option>
+                    </select>
+                </div>
+                
+                <button type="submit" class="login-btn">
+                    <i class="fas fa-sign-in-alt"></i>
+                    Войти
+                </button>
+            </form>
+        </div>
+    </div>
 
-    <main class="map-wrapper">
-      <div id="map"></div>
-    </main>
+    <div id="notificationsContainer" class="notifications-container"></div>
 
-    <aside id="sidebar" class="sidebar"><div class="sidebar-content"></div></aside>
-  </div>
-
-  <!-- Статус подключения и уведомления -->
-  <div id="connectionStatus" class="connection-status connecting">
-    <i class="fas fa-spinner fa-spin"></i><span>Подключение…</span>
-  </div>
-  <div id="notificationsContainer" class="notifications-container"></div>
-
-  <!-- JS-библиотеки (обычные скрипты) -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
-  <script src="https://cdn.socket.io/4.7.0/socket.io.min.js"></script>
-
-  <!-- ES-модули -->
-  <script type="module" src="./js/config.js"></script>
-  <script type="module" src="./js/app.js"></script>
+    <script type="module" src="js/app.js"></script>
 </body>
 </html>

@@ -1,9 +1,9 @@
 /* js/config.js */
 export const CONFIG = {
-  // ОБНОВЛЕНО: URL Koyeb сервера
-  SERVER_URL: 'https://adventure-sync-server-poga83.koyeb.app',
+  // ОБНОВЛЕНО: URL Railway сервера
+  SERVER_URL: 'https://adventure-sync-server-production.up.railway.app',
   FALLBACK_URLS: [
-    'https://adventure-sync-server-poga83.koyeb.app',
+    'https://adventure-sync-server-production.up.railway.app',
     'http://localhost:3000'
   ],
   
@@ -21,17 +21,17 @@ export const CONFIG = {
     rememberUpgrade: true,
     forceNew: false,
     
-    // Оптимизация для Koyeb
+    // Оптимизация для Railway
     autoConnect: true,
     multiplex: true,
-    rejectUnauthorized: true
+    rejectUnauthorized: false // Railway может использовать самоподписанные сертификаты
   },
   
   MAP: {
     DEFAULT_CENTER: [55.7558, 37.6173],
     DEFAULT_ZOOM: 10,
     TILE_LAYER: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    ATTRIBUTION: '&copy; OpenStreetMap contributors'
+    ATTRIBUTION: '© OpenStreetMap contributors'
   },
   
   UI: { 
@@ -50,11 +50,11 @@ export const CONFIG = {
   }
 };
 
-// Улучшенная проверка Koyeb сервера
+// Улучшенная проверка Railway сервера
 export async function pingServer() {
   for (const url of [CONFIG.SERVER_URL, ...CONFIG.FALLBACK_URLS]) {
     try {
-      console.log(`🔍 Проверка Koyeb сервера: ${url}`);
+      console.log(`🔍 Проверка Railway сервера: ${url}`);
       
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
@@ -75,17 +75,17 @@ export async function pingServer() {
       if (response.ok) {
         const data = await response.json();
         CONFIG.SERVER_URL = url;
-        console.log(`✅ Koyeb сервер доступен: ${url}`, data);
+        console.log(`✅ Railway сервер доступен: ${url}`, data);
         return { success: true, data };
       }
     } catch (error) {
-      console.warn(`⚠️ Koyeb сервер недоступен ${url}:`, error.message);
+      console.warn(`⚠️ Railway сервер недоступен ${url}:`, error.message);
     }
   }
   return { success: false };
 }
 
-// Получение статистики Koyeb сервера
+// Получение статистики Railway сервера
 export async function getServerStats() {
   try {
     const response = await fetch(`${CONFIG.SERVER_URL}/stats`, { 
@@ -96,7 +96,7 @@ export async function getServerStats() {
       return await response.json();
     }
   } catch (error) {
-    console.warn('⚠️ Не удалось получить статистику Koyeb:', error);
+    console.warn('⚠️ Не удалось получить статистику Railway:', error);
   }
   return null;
 }
